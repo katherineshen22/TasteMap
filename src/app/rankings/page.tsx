@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
 import { dishes } from "@/data/sampleData";
 
 export default function RankingsPage() {
@@ -6,6 +7,7 @@ export default function RankingsPage() {
 
   return (
     <main className="min-h-screen bg-yellow-50 p-8">
+        <Navbar />
       <h1 className="text-4xl font-bold mb-2 text-gray-900">Dish Rankings</h1>
 
       <p className="text-gray-700 mb-4">

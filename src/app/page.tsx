@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
 import { dishes, recipes } from "@/data/sampleData";
 import { recommendRecipes } from "@/lib/recommendations";
 
@@ -16,16 +17,20 @@ export default function Home() {
 
       <Link 
         href="/add"
-        className="inline-block bg-black text-white rounded-lg px-4 py-2 font-semibold mb-8"
-        >
+        className="inline-block bg-black text-white rounded-lg px-4 py-2 font-semibold mb-8">
         Add Your First Dish
       </Link>
 
       <Link
         href="/rankings"
-        className="inline-block bg-white text-gray-900 rounded-lg px-4 py-2 font-semibold border border-gray-300 ml-3"
-        >
+        className="inline-block bg-white text-gray-900 rounded-lg px-4 py-2 font-semibold border border-gray-300 ml-3">
         View Rankings
+      </Link>
+
+      <Link
+        href="/recipes"
+        className="inline-block bg-white text-gray-900 rounded-lg px-4 py-2 font-semibold border border-gray-300 ml-3">
+      View Recipes
       </Link>
 
 

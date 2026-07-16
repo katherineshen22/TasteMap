@@ -1,7 +1,9 @@
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
 export default function AddDishPage() {
     return (
       <main className="min-h-screen bg-yellow-50 p-8">
+        <Navbar />
         <h1 className="text-4xl font-bold mb-2 text-gray-900">Add a Dish</h1>
   
         <p className="text-gray-700 mb-8">
