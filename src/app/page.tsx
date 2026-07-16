@@ -21,6 +21,13 @@ export default function Home() {
         Add Your First Dish
       </Link>
 
+      <Link
+        href="/rankings"
+        className="inline-block bg-white text-gray-900 rounded-lg px-4 py-2 font-semibold border border-gray-300 ml-3"
+        >
+        View Rankings
+      </Link>
+
 
       <section className="mb-10">
         <h2 className="text-2xl font-semibold mb-4 text-gray-900">Top Dishes</h2>

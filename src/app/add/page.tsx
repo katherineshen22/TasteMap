@@ -1,3 +1,4 @@
+import Link from "next/link";
 export default function AddDishPage() {
     return (
       <main className="min-h-screen bg-yellow-50 p-8">
@@ -6,7 +7,14 @@ export default function AddDishPage() {
         <p className="text-gray-700 mb-8">
           Log a restaurant dish so TasteMap can learn what you like.
         </p>
+
+        <Link href="/" 
+            className="inline-block mb-6 text-gray-700 underline"
+        >
+        ← Back to Home
+        </Link>
   
+
         <form className="bg-white rounded-xl p-6 shadow max-w-xl grid gap-4">
           <label className="grid gap-1 text-gray-800 font-medium">
             Restaurant
