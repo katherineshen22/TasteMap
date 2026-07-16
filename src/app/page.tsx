@@ -9,6 +9,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-orange-50 p-8">
+      <Navbar />
       <h1 className="text-4xl font-bold mb-2 text-gray-900">TasteMap</h1>
 
       <p className="text-gray-700 mb-8">
