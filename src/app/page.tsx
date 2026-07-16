@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { dishes, recipes } from "@/data/sampleData";
 import { recommendRecipes } from "@/lib/recommendations";
 
@@ -12,6 +13,14 @@ export default function Home() {
       <p className="text-gray-700 mb-8">
         Track your favorite restaurant dishes and find recipes you would actually want to cook.
       </p>
+
+      <Link 
+        href="/add"
+        className="inline-block bg-black text-white rounded-lg px-4 py-2 font-semibold mb-8"
+        >
+        Add Your First Dish
+      </Link>
+
 
       <section className="mb-10">
         <h2 className="text-2xl font-semibold mb-4 text-gray-900">Top Dishes</h2>
