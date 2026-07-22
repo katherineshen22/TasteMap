@@ -1,9 +1,16 @@
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import { dishes, recipes } from "@/data/sampleData";
+import { recipes } from "@/data/sampleData";
+import { supabase } from "@/lib/supabaseClient";
+import { Dish } from "@/types/food";
 import { recommendRecipes } from "@/lib/recommendations";
 
-export default function Home() {
+export default async function Home() {
+  const { data } = await supabase
+  .from("dishes")
+  .select("*")
+  .order("rating", { ascending: false });
+  const dishes = (data || []) as Dish[];
   const topDishes = [...dishes].sort((a, b) => b.rating - a.rating).slice(0, 3);
   const recommendedRecipes = recommendRecipes(dishes, recipes).slice(0, 3);
 
