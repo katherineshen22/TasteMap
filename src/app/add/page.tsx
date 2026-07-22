@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import { Dish } from "@/types/food";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function AddDishPage() {
   const [savedDishes, setSavedDishes] = useState<Dish[]>([]);
@@ -14,11 +15,10 @@ export default function AddDishPage() {
   const [tags, setTags] = useState("");
   const [notes, setNotes] = useState("");
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    const newDish: Dish = {
-      id: Date.now(),
+  
+    const newDish = {
       restaurant,
       dish,
       cuisine,
@@ -26,9 +26,22 @@ export default function AddDishPage() {
       tags: tags.split(",").map((tag) => tag.trim()),
       notes,
     };
-
-    setSavedDishes([newDish, ...savedDishes]);
-
+  
+    const { data, error } = await supabase
+      .from("dishes")
+      .insert([newDish])
+      .select();
+  
+    if (error) {
+        console.error("Error saving dish:", error);
+        alert(`Error saving dish: ${error.message}`);
+        return;
+    }
+  
+    if (data) {
+      setSavedDishes([data[0], ...savedDishes]);
+    }
+  
     setRestaurant("");
     setDish("");
     setCuisine("");
