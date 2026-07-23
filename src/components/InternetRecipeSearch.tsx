@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 type InternetRecipe = {
   id: number;
@@ -103,10 +104,12 @@ export default function InternetRecipeSearch({
           {recipes.map((recipe) => (
             <div key={recipe.id} className="rounded-xl bg-white p-4 shadow">
               {recipe.image && (
-                <img
-                  src={recipe.image}
-                  alt={recipe.title}
-                  className="mb-3 h-40 w-full rounded-lg object-cover"
+                <Image
+                    src={recipe.image}
+                    alt={recipe.title}
+                    width={500}
+                    height={300}
+                    className="mb-3 h-40 w-full rounded-lg object-cover"
                 />
               )}
 
