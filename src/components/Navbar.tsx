@@ -37,6 +37,13 @@ export default function Navbar() {
       >
         Profile
       </Link>
+
+      <Link
+        href="/internet-recipes"
+        className="rounded-lg border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-900"
+      >
+        Internet Recipes
+      </Link>
     </nav>
   );
 }

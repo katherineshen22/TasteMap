@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { Dish } from "@/types/food";
 import Link from "next/link";
 import DeleteDishButton from "@/components/DeleteDishButton";
+import InternetRecipeSearch from "@/components/InternetRecipeSearch";
 
 type DishDetailsPageProps = {
   params: Promise<{
@@ -79,6 +80,18 @@ export default async function DishDetailsPage({ params }: DishDetailsPageProps) 
             <h2 className="mb-4 text-2xl font-semibold text-gray-900">
               Cook something like this
             </h2>
+
+            <div className="mt-8">
+                <h2 className="mb-4 text-2xl font-semibold text-gray-900">
+                    Search internet recipes like this dish
+                </h2>
+
+                <InternetRecipeSearch
+                    defaultQuery={dish.dish}
+                    defaultCuisine={dish.cuisine}
+                    defaultTags={dish.tags?.slice(0, 2).join(", ") || ""}
+                />
+            </div>
 
             <div className="grid gap-4">
               {matchingRecipes.map((recipe) => (
