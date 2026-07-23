@@ -4,6 +4,7 @@ import { recommendRecipes } from "@/lib/recommendations";
 import { supabase } from "@/lib/supabaseClient";
 import { Dish } from "@/types/food";
 import Link from "next/link";
+import DeleteDishButton from "@/components/DeleteDishButton";
 
 type DishDetailsPageProps = {
   params: Promise<{
@@ -65,6 +66,8 @@ export default async function DishDetailsPage({ params }: DishDetailsPageProps) 
             </div>
 
             <p className="text-gray-700">{dish.notes}</p>
+            
+            <DeleteDishButton dishId={dish.id} />
           </section>
 
           <section className="max-w-3xl">
