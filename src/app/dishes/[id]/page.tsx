@@ -67,6 +67,11 @@ export default async function DishDetailsPage({ params }: DishDetailsPageProps) 
 
             <p className="text-gray-700">{dish.notes}</p>
             
+            <Link href={`/dishes/${dish.id}/edit`} className="mt-4 mr-3 inline-block rounded-lg bg-white px-4 py-2 font-semibold text-gray-900 border border-gray-300"
+            >
+                Edit Dish
+            </Link>
+
             <DeleteDishButton dishId={dish.id} />
           </section>
 
