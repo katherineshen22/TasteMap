@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import { Dish } from "@/types/food";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { normalizeCuisine, normalizeTags } from "@/lib/formatters";
 
 export default function AddDishPage() {
   const [savedDishes, setSavedDishes] = useState<Dish[]>([]);
@@ -22,12 +23,12 @@ export default function AddDishPage() {
     event.preventDefault();
   
     const newDish = {
-      restaurant,
-      dish,
-      cuisine,
-      rating: Number(rating),
-      tags: tags.split(",").map((tag) => tag.trim()),
-      notes,
+        restaurant: restaurant.trim(),
+        dish: dish.trim(),
+        cuisine: normalizeCuisine(cuisine),
+        rating: Number(rating),
+        tags: normalizeTags(tags),
+        notes: notes.trim(),
     };
   
     const { data, error } = await supabase

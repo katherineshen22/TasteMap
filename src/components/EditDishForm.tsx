@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Dish } from "@/types/food";
+import { normalizeCuisine, normalizeTags } from "@/lib/formatters";
 
 type EditDishFormProps = {
   dish: Dish;
@@ -25,12 +26,9 @@ export default function EditDishForm({ dish }: EditDishFormProps) {
     const updatedDish = {
       restaurant,
       dish: dishName,
-      cuisine,
+      cuisine: normalizeCuisine(cuisine),
       rating: Number(rating),
-      tags: tags
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter(Boolean),
+      tags: normalizeTags(tags),
       notes,
     };
 
