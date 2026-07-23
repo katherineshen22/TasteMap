@@ -1,7 +1,7 @@
 import Navbar from "@/components/Navbar";
+import SearchableRankings from "@/components/SearchableRankings";
 import { supabase } from "@/lib/supabaseClient";
 import { Dish } from "@/types/food";
-import Link from "next/link";
 
 export default async function RankingsPage() {
   const { data, error } = await supabase
@@ -15,9 +15,9 @@ export default async function RankingsPage() {
     <main className="min-h-screen bg-yellow-50 p-8">
       <Navbar />
 
-      <h1 className="text-4xl font-bold mb-2 text-gray-900">Dish Rankings</h1>
+      <h1 className="mb-2 text-4xl font-bold text-gray-900">Dish Rankings</h1>
 
-      <p className="text-gray-700 mb-8">
+      <p className="mb-8 text-gray-700">
         Your favorite restaurant dishes, ranked by rating.
       </p>
 
@@ -32,22 +32,7 @@ export default async function RankingsPage() {
           No dishes saved yet. Add your first dish to see rankings.
         </p>
       ) : (
-        <div className="grid gap-4 max-w-3xl">
-          {dishes.map((dish, index) => (
-            <Link
-            key={dish.id}
-            href={`/dishes/${dish.id}`}
-            className="block bg-white rounded-xl p-4 shadow hover:shadow-md transition"
-          >
-            <p className="text-sm text-gray-500">#{index + 1}</p>
-            <h2 className="text-xl font-semibold text-gray-900">{dish.dish}</h2>
-            <p className="text-gray-600">{dish.restaurant}</p>
-            <p className="font-medium text-gray-800">Rating: {dish.rating}/10</p>
-            <p className="text-sm text-gray-500">{dish.tags?.join(", ")}</p>
-            <p className="text-sm text-gray-600 mt-2">{dish.notes}</p>
-          </Link>
-          ))}
-        </div>
+        <SearchableRankings dishes={dishes} />
       )}
     </main>
   );
