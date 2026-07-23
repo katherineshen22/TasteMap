@@ -4,6 +4,7 @@ import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import { Dish } from "@/types/food";
 import { supabase } from "@/lib/supabaseClient";
+import { useRouter } from "next/navigation";
 
 export default function AddDishPage() {
   const [savedDishes, setSavedDishes] = useState<Dish[]>([]);
@@ -14,6 +15,8 @@ export default function AddDishPage() {
   const [rating, setRating] = useState("");
   const [tags, setTags] = useState("");
   const [notes, setNotes] = useState("");
+  
+  const router = useRouter();
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -48,6 +51,8 @@ export default function AddDishPage() {
     setRating("");
     setTags("");
     setNotes("");
+
+    router.push("/rankings");
   }
 
   return (
