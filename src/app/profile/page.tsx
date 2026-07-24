@@ -2,6 +2,7 @@ import Navbar from "@/components/Navbar";
 import { supabase } from "@/lib/supabaseClient";
 import { Dish } from "@/types/food";
 import AITasteSummary from "@/components/AITasteSummary";
+import AIRestaurantIdeas from "@/components/AIRestaurantIdeas";
 
 export default async function ProfilePage() {
   const { data, error } = await supabase
@@ -49,6 +50,7 @@ export default async function ProfilePage() {
       </p>
 
       <AITasteSummary dishes={dishes} />
+      <AIRestaurantIdeas dishes={dishes} />
 
       {error && (
         <p className="mb-4 text-red-600">

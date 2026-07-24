@@ -1,4 +1,6 @@
-export const dishes = [
+import { Dish, Recipe } from "@/types/food";
+
+export const dishes: Dish[] = [
     {
       id: 1,
       restaurant: "Terakawa Ramen",
@@ -28,7 +30,7 @@ export const dishes = [
     },
   ];
   
-  export const recipes = [
+  export const recipes: Recipe[] = [
     {
       id: 1,
       title: "Spicy Miso Ramen",
