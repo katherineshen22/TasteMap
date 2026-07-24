@@ -1,6 +1,7 @@
 import Navbar from "@/components/Navbar";
 import { supabase } from "@/lib/supabaseClient";
 import { Dish } from "@/types/food";
+import AITasteSummary from "@/components/AITasteSummary";
 
 export default async function ProfilePage() {
   const { data, error } = await supabase
@@ -46,6 +47,8 @@ export default async function ProfilePage() {
       <p className="text-gray-700 mb-8">
         A summary of the cuisines, flavors, and dishes you tend to rate highly.
       </p>
+
+      <AITasteSummary dishes={dishes} />
 
       {error && (
         <p className="mb-4 text-red-600">

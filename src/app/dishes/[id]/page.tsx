@@ -90,6 +90,13 @@ export default async function DishDetailsPage({ params }: DishDetailsPageProps) 
                     defaultQuery={dish.dish}
                     defaultCuisine={dish.cuisine}
                     defaultTags={dish.tags?.slice(0, 2).join(", ") || ""}
+                    dishForAI={{
+                        restaurant: dish.restaurant,
+                        dish: dish.dish,
+                        cuisine: dish.cuisine,
+                        tags: dish.tags || [],
+                        notes: dish.notes || "",
+                    }}
                 />
             </div>
 

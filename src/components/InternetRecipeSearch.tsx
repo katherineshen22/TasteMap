@@ -14,15 +14,23 @@ type InternetRecipe = {
 };
 
 type InternetRecipeSearchProps = {
-  defaultCuisine?: string;
-  defaultQuery?: string;
-  defaultTags?: string;
+    defaultCuisine?: string;
+    defaultQuery?: string;
+    defaultTags?: string;
+    dishForAI?: {
+      restaurant: string;
+      dish: string;
+      cuisine: string;
+      tags: string[];
+      notes: string;
+    };
 };
 
 export default function InternetRecipeSearch({
-  defaultCuisine = "",
-  defaultQuery = "",
-  defaultTags = "",
+    defaultCuisine = "",
+    defaultQuery = "",
+    defaultTags = "",
+    dishForAI,
 }: InternetRecipeSearchProps) {
   const [query, setQuery] = useState(defaultQuery);
   const [cuisine, setCuisine] = useState(defaultCuisine);
@@ -31,6 +39,7 @@ export default function InternetRecipeSearch({
   const [recipes, setRecipes] = useState<InternetRecipe[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
   async function searchRecipes() {
     setLoading(true);
@@ -54,6 +63,32 @@ export default function InternetRecipeSearch({
 
     setRecipes(data.results || []);
     setLoading(false);
+  }
+
+  async function generateSmarterSearch() {
+    if (!dishForAI) return;
+  
+    setAiLoading(true);
+    setError("");
+  
+    const response = await fetch("/api/ai/recipe-query", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ dish: dishForAI }),
+    });
+  
+    const data = await response.json();
+  
+    if (!response.ok) {
+      setError(data.error || "Could not generate a smarter search.");
+      setAiLoading(false);
+      return;
+    }
+  
+    setQuery(data.query);
+    setAiLoading(false);
   }
 
   return (
@@ -88,13 +123,25 @@ export default function InternetRecipeSearch({
           onChange={(event) => setMaxReadyTime(event.target.value)}
         />
 
+        <div className="flex flex-wrap gap-3 md:col-span-4">
+        {dishForAI && (
+            <button
+            type="button"
+            onClick={generateSmarterSearch}
+            className="rounded-full border border-black px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-black transition hover:bg-black hover:text-white"
+            >
+            {aiLoading ? "Generating..." : "Generate Smarter Recipe Search"}
+            </button>
+        )}
+
         <button
-          type="button"
-          onClick={searchRecipes}
-          className="rounded-lg bg-black p-3 font-semibold text-white md:col-span-4"
+            type="button"
+            onClick={searchRecipes}
+            className="rounded-full bg-black px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-white transition hover:opacity-80"
         >
-          {loading ? "Searching..." : "Search Internet Recipes"}
+            {loading ? "Searching..." : "Search Internet Recipes"}
         </button>
+        </div>
       </div>
 
       {error && <p className="mb-4 text-red-600">{error}</p>}
