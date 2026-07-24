@@ -14,7 +14,7 @@ export default async function RecipesPage() {
   const recommendedRecipes = recommendRecipes(dishes, recipes);
 
   return (
-    <main className="min-h-screen bg-yellow-50 p-8">
+    <main className="min-h-screen bg-[#faf7ef] p-8">
       <Navbar />
 
       <h1 className="text-4xl font-bold mb-2 text-gray-900">

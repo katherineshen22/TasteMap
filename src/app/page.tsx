@@ -44,23 +44,38 @@ export default async function Home() {
     "None yet";
 
   return (
-    <main className="min-h-screen bg-yellow-50 p-8">
+    <main className="min-h-screen bg-[#faf7ef] p-8">
       <Navbar />
 
-      <section className="mb-10 max-w-4xl">
-        <h1 className="mb-2 text-5xl font-bold text-gray-900">TasteMap</h1>
-
-        <p className="mb-6 text-lg text-gray-700">
-          Track your favorite restaurant dishes and find recipes you would
-          actually want to cook.
+      <section className="mx-auto mb-16 max-w-5xl text-center">
+        <p className="mb-4 text-xs font-black uppercase tracking-[0.35em] text-gray-600">
+          Your personal food memory map
         </p>
 
-        <Link
-          href="/add"
-          className="inline-block rounded-lg bg-black px-4 py-2 font-semibold text-white"
-        >
-          Add Your First Dish
-        </Link>
+        <h1 className="mb-6 text-6xl font-black tracking-tight text-black md:text-7xl">
+          TasteMap
+        </h1>
+
+        <p className="mx-auto mb-8 max-w-2xl text-lg leading-8 text-gray-700">
+          Track your favorite restaurant dishes, learn your taste patterns, and find
+          recipes from the internet that match what you actually love eating.
+        </p>
+
+        <div className="flex flex-wrap justify-center gap-3">
+          <Link
+            href="/add"
+            className="rounded-full bg-black px-6 py-3 text-sm font-black uppercase tracking-[0.2em] text-white transition hover:opacity-80"
+          >
+            Add Dish
+          </Link>
+
+          <Link
+            href="/internet-recipes"
+            className="rounded-full border border-black px-6 py-3 text-sm font-black uppercase tracking-[0.2em] text-black transition hover:bg-black hover:text-white"
+          >
+            Search Recipes
+          </Link>
+        </div>
       </section>
 
       {error && (

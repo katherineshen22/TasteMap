@@ -59,7 +59,7 @@ export default async function DishDetailsPage({ params }: DishDetailsPageProps) 
               {dish.tags?.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-full bg-yellow-100 px-3 py-1 text-sm text-gray-800"
+                  className="rounded-full bg-[#faf7ef] px-3 py-1 text-sm text-gray-800"
                 >
                   {tag}
                 </span>

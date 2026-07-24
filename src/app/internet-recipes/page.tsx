@@ -3,7 +3,7 @@ import InternetRecipeSearch from "@/components/InternetRecipeSearch";
 
 export default function InternetRecipesPage() {
   return (
-    <main className="min-h-screen bg-yellow-50 p-8">
+    <main className="min-h-screen bg-[#faf7ef] p-8">
       <Navbar />
 
       <h1 className="mb-2 text-4xl font-bold text-gray-900">

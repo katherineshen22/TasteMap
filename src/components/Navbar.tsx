@@ -1,49 +1,28 @@
 import Link from "next/link";
 
+const navItems = [
+  { href: "/", label: "Home" },
+  { href: "/add", label: "Add Dish" },
+  { href: "/rankings", label: "Rankings" },
+  { href: "/recipes", label: "Recipes" },
+  { href: "/internet-recipes", label: "Internet Recipes" },
+  { href: "/profile", label: "Profile" },
+];
+
 export default function Navbar() {
   return (
-    <nav className="mb-8 flex flex-wrap gap-3">
-      <Link
-        href="/"
-        className="rounded-lg bg-black px-4 py-2 font-semibold text-white"
-      >
-        Home
-      </Link>
+    <nav className="mb-12 flex flex-wrap items-center justify-center gap-4 py-6 text-xs font-black uppercase tracking-[0.22em] text-black md:text-xs">
+      {navItems.map((item, index) => (
+        <div key={item.href} className="flex items-center gap-4">
+          <Link href={item.href} className="transition hover:opacity-50">
+            {item.label}
+          </Link>
 
-      <Link
-        href="/add"
-        className="rounded-lg border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-900"
-      >
-        Add Dish
-      </Link>
-
-      <Link
-        href="/rankings"
-        className="rounded-lg border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-900"
-      >
-        Rankings
-      </Link>
-
-      <Link
-        href="/recipes"
-        className="rounded-lg border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-900"
-      >
-        Recipes
-      </Link>
-
-      <Link
-        href="/profile"
-        className="rounded-lg border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-900"
-      >
-        Profile
-      </Link>
-
-      <Link
-        href="/internet-recipes"
-        className="rounded-lg border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-900"
-      >
-        Internet Recipes
-      </Link>
+          {index < navItems.length - 1 && (
+            <span className="text-gray-500">/</span>
+          )}
+        </div>
+      ))}
     </nav>
   );
 }
