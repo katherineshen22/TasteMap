@@ -21,6 +21,17 @@ export default function AddDishPage() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const {
+        data: { user },
+        error: userError,
+    } = await supabase.auth.getUser();
+      
+    if (userError || !user) {
+        alert("Please log in before adding a dish.");
+        router.push("/login");
+        return;
+    }
   
     const newDish = {
         restaurant: restaurant.trim(),
@@ -29,6 +40,7 @@ export default function AddDishPage() {
         rating: Number(rating),
         tags: normalizeTags(tags),
         notes: notes.trim(),
+        user_id: user.id,
     };
   
     const { data, error } = await supabase

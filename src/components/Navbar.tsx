@@ -7,6 +7,7 @@ const navItems = [
   { href: "/recipes", label: "Recipes" },
   { href: "/internet-recipes", label: "Internet Recipes" },
   { href: "/profile", label: "Profile" },
+  { href: "/login", label: "Login" },
 ];
 
 export default function Navbar() {
