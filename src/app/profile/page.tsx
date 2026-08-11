@@ -1,23 +1,60 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import { supabase } from "@/lib/supabaseClient";
-import { Dish } from "@/types/food";
 import AITasteSummary from "@/components/AITasteSummary";
 import AIRestaurantIdeas from "@/components/AIRestaurantIdeas";
+import { supabase } from "@/lib/supabaseClient";
+import { Dish } from "@/types/food";
 
-export default async function ProfilePage() {
-  const { data, error } = await supabase
-    .from("dishes")
-    .select("*")
-    .order("created_at", { ascending: false });
+export default function ProfilePage() {
+  const [dishes, setDishes] = useState<Dish[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [error, setError] = useState("");
 
-  const dishes = (data || []) as Dish[];
+  useEffect(() => {
+    async function loadDishes() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-  const likedDishes = dishes.filter((dish) => dish.rating >= 8);
+      if (!user) {
+        setIsLoggedIn(false);
+        setLoading(false);
+        return;
+      }
+
+      setIsLoggedIn(true);
+
+      const { data, error } = await supabase
+        .from("dishes")
+        .select("*")
+        .order("rating", { ascending: false });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setDishes((data || []) as Dish[]);
+      }
+
+      setLoading(false);
+    }
+
+    loadDishes();
+  }, []);
+
+  const averageRating =
+    dishes.length > 0
+      ? dishes.reduce((sum, dish) => sum + Number(dish.rating), 0) /
+        dishes.length
+      : 0;
 
   const cuisineCounts: Record<string, number> = {};
   const tagCounts: Record<string, number> = {};
 
-  likedDishes.forEach((dish) => {
+  dishes.forEach((dish) => {
     if (dish.cuisine) {
       cuisineCounts[dish.cuisine] = (cuisineCounts[dish.cuisine] || 0) + 1;
     }
@@ -27,96 +64,86 @@ export default async function ProfilePage() {
     });
   });
 
-  const favoriteCuisines = Object.entries(cuisineCounts).sort(
-    (a, b) => b[1] - a[1]
-  );
+  const favoriteCuisine =
+    Object.entries(cuisineCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+    "None yet";
 
-  const favoriteTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
-
-  const averageRating =
-    dishes.length > 0
-      ? dishes.reduce((sum, dish) => sum + Number(dish.rating), 0) /
-        dishes.length
-      : 0;
+  const topTag =
+    Object.entries(tagCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+    "None yet";
 
   return (
     <main className="min-h-screen bg-[#faf7ef] p-8">
       <Navbar />
 
-      <h1 className="text-4xl font-bold mb-2 text-gray-900">Taste Profile</h1>
+      <h1 className="mb-2 text-4xl font-black text-black">Profile</h1>
 
-      <p className="text-gray-700 mb-8">
-        A summary of the cuisines, flavors, and dishes you tend to rate highly.
+      <p className="mb-8 text-gray-700">
+        Your TasteMap summary based on the dishes you have saved.
       </p>
 
-      <AITasteSummary dishes={dishes} />
-      <AIRestaurantIdeas dishes={dishes} />
+      {loading && <p className="text-gray-700">Loading profile...</p>}
 
-      {error && (
-        <p className="mb-4 text-red-600">
-          Error loading profile: {error.message}
-        </p>
+      {!loading && !isLoggedIn && (
+        <div className="max-w-xl rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+          <p className="mb-4 text-gray-700">
+            Please log in to see your personal TasteMap profile.
+          </p>
+
+          <Link
+            href="/login"
+            className="rounded-full bg-black px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-white"
+          >
+            Log In
+          </Link>
+        </div>
       )}
 
-      {dishes.length === 0 ? (
-        <p className="text-gray-700">
-          No dishes saved yet. Add dishes to start building your taste profile.
-        </p>
-      ) : (
-        <section className="grid gap-4 max-w-3xl mb-8">
-          <div className="bg-white rounded-xl p-4 shadow">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Average Rating
-            </h2>
-            <p className="text-3xl font-bold text-gray-900 mt-2">
-              {averageRating.toFixed(1)}/10
+      {error && <p className="mb-4 text-red-600">{error}</p>}
+
+      {!loading && isLoggedIn && (
+        <>
+          <section className="mb-8 grid max-w-4xl gap-4 md:grid-cols-4">
+            <div className="rounded-xl bg-white p-4 shadow">
+              <p className="text-sm text-gray-500">Total Dishes</p>
+              <p className="mt-2 text-3xl font-bold text-gray-900">
+                {dishes.length}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-white p-4 shadow">
+              <p className="text-sm text-gray-500">Average Rating</p>
+              <p className="mt-2 text-3xl font-bold text-gray-900">
+                {dishes.length > 0 ? averageRating.toFixed(1) : "—"}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-white p-4 shadow">
+              <p className="text-sm text-gray-500">Favorite Cuisine</p>
+              <p className="mt-2 text-xl font-bold text-gray-900">
+                {favoriteCuisine}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-white p-4 shadow">
+              <p className="text-sm text-gray-500">Top Flavor Tag</p>
+              <p className="mt-2 text-xl font-bold text-gray-900">
+                {topTag}
+              </p>
+            </div>
+          </section>
+
+          {dishes.length === 0 ? (
+            <p className="text-gray-700">
+              Add your first dish so TasteMap can build your profile.
             </p>
-          </div>
-
-          <div className="bg-white rounded-xl p-4 shadow">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Favorite Cuisines
-            </h2>
-
-            <div className="mt-3 grid gap-2">
-              {favoriteCuisines.length === 0 ? (
-                <p className="text-gray-700">
-                  Add more highly rated dishes to see cuisine trends.
-                </p>
-              ) : (
-                favoriteCuisines.map(([cuisine, count]) => (
-                  <p key={cuisine} className="text-gray-700">
-                    {cuisine}: {count} highly rated dish
-                    {count > 1 ? "es" : ""}
-                  </p>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl p-4 shadow">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Favorite Flavor Tags
-            </h2>
-
-            <div className="mt-3 flex flex-wrap gap-2">
-              {favoriteTags.length === 0 ? (
-                <p className="text-gray-700">
-                  Add tags to your dishes to see flavor trends.
-                </p>
-              ) : (
-                favoriteTags.map(([tag, count]) => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-yellow-100 px-3 py-1 text-sm text-gray-800"
-                  >
-                    {tag} × {count}
-                  </span>
-                ))
-              )}
-            </div>
-          </div>
-        </section>
+          ) : (
+            <>
+              <AITasteSummary dishes={dishes} />
+              <AIRestaurantIdeas dishes={dishes} />
+            </>
+          )}
+        </>
       )}
     </main>
   );

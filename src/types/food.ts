@@ -6,6 +6,7 @@ export type Dish = {
     rating: number;
     tags: string[];
     notes: string;
+    user_id?: string;
     created_at?: string;
   };
   

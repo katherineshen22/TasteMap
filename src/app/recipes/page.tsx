@@ -1,44 +1,96 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { recipes } from "@/data/sampleData";
 import { recommendRecipes } from "@/lib/recommendations";
 import { supabase } from "@/lib/supabaseClient";
 import { Dish } from "@/types/food";
 
-export default async function RecipesPage() {
-  const { data, error } = await supabase
-    .from("dishes")
-    .select("*")
-    .order("created_at", { ascending: false });
+export default function RecipesPage() {
+  const [dishes, setDishes] = useState<Dish[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [error, setError] = useState("");
 
-  const dishes = (data || []) as Dish[];
+  useEffect(() => {
+    async function loadDishes() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setIsLoggedIn(false);
+        setLoading(false);
+        return;
+      }
+
+      setIsLoggedIn(true);
+
+      const { data, error } = await supabase
+        .from("dishes")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setDishes((data || []) as Dish[]);
+      }
+
+      setLoading(false);
+    }
+
+    loadDishes();
+  }, []);
+
   const recommendedRecipes = recommendRecipes(dishes, recipes);
 
   return (
     <main className="min-h-screen bg-[#faf7ef] p-8">
       <Navbar />
 
-      <h1 className="text-4xl font-bold mb-2 text-gray-900">
+      <h1 className="mb-2 text-4xl font-black text-black">
         Recommended Recipes
       </h1>
 
-      <p className="text-gray-700 mb-8">
+      <p className="mb-8 text-gray-700">
         Recipes matched to the restaurant dishes you rated highly.
       </p>
 
-      {error && (
-        <p className="mb-4 text-red-600">
-          Error loading dishes: {error.message}
-        </p>
+      {loading && <p className="text-gray-700">Loading...</p>}
+
+      {!loading && !isLoggedIn && (
+        <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+          <p className="mb-4 text-gray-700">
+            Please log in to see personalized recipe recommendations.
+          </p>
+
+          <Link
+            href="/login"
+            className="rounded-full bg-black px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-white"
+          >
+            Log In
+          </Link>
+        </div>
       )}
 
-      {dishes.length === 0 ? (
+      {error && <p className="mb-4 text-red-600">{error}</p>}
+
+      {!loading && isLoggedIn && dishes.length === 0 && (
         <p className="text-gray-700">
           Add some dishes first so TasteMap can recommend recipes based on your taste.
         </p>
-      ) : (
-        <div className="grid gap-4 max-w-3xl">
+      )}
+
+      {!loading && isLoggedIn && dishes.length > 0 && (
+        <div className="grid max-w-3xl gap-4">
           {recommendedRecipes.map((recipe) => (
-            <div key={recipe.id} className="bg-white rounded-xl p-4 shadow">
+            <div
+              key={recipe.id}
+              className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm"
+            >
               <h2 className="text-xl font-semibold text-gray-900">
                 {recipe.title}
               </h2>
@@ -47,18 +99,18 @@ export default async function RecipesPage() {
                 {recipe.cuisine} · {recipe.timeMinutes} min · {recipe.difficulty}
               </p>
 
-              <p className="text-sm text-gray-500 mt-1">{recipe.reason}</p>
+              <p className="mt-1 text-sm text-gray-500">{recipe.reason}</p>
 
-              <p className="text-sm mt-2 text-gray-800">
+              <p className="mt-2 text-sm text-gray-800">
                 Match score:{" "}
                 <span className="font-semibold">{recipe.score}</span>
               </p>
 
-              <p className="text-sm mt-2 text-gray-600">
+              <p className="mt-2 text-sm text-gray-600">
                 Tags: {recipe.tags.join(", ")}
               </p>
 
-              <p className="text-sm mt-1 text-gray-600">
+              <p className="mt-1 text-sm text-gray-600">
                 Ingredients: {recipe.ingredients.join(", ")}
               </p>
             </div>
