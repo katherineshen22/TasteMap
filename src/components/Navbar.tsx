@@ -1,29 +1,150 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 
 const navItems = [
   { href: "/", label: "Home" },
   { href: "/add", label: "Add Dish" },
   { href: "/rankings", label: "Rankings" },
   { href: "/recipes", label: "Recipes" },
-  { href: "/internet-recipes", label: "Internet Recipes" },
+  { href: "/internet-recipes", label: "Find Recipes" },
   { href: "/profile", label: "Profile" },
-  { href: "/login", label: "Login" },
 ];
 
 export default function Navbar() {
-  return (
-    <nav className="mb-12 flex flex-wrap items-center justify-center gap-4 py-6 text-xs font-black uppercase tracking-[0.22em] text-black md:text-xs">
-      {navItems.map((item, index) => (
-        <div key={item.href} className="flex items-center gap-4">
-          <Link href={item.href} className="transition hover:opacity-50">
-            {item.label}
-          </Link>
+  const pathname = usePathname();
+  const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [email, setEmail] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
-          {index < navItems.length - 1 && (
-            <span className="text-gray-500">/</span>
-          )}
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setEmail(user?.email ?? null);
+      setAuthChecked(true);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setEmail(session?.user?.email ?? null);
+      setAuthChecked(true);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Close the mobile menu whenever the page changes.
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
+
+  function isActive(href: string) {
+    return href === "/" ? pathname === "/" : pathname.startsWith(href);
+  }
+
+  const linkClass = (href: string) =>
+    `rounded-full px-3 py-2 transition ${
+      isActive(href)
+        ? "bg-black text-white"
+        : "text-gray-700 hover:bg-black/5 hover:text-black"
+    }`;
+
+  return (
+    <header className="sticky top-0 z-20 border-b border-black/10 bg-[#faf7ef]/90 backdrop-blur">
+      <nav className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+        <Link href="/" className="text-lg font-black tracking-tight text-black">
+          TasteMap
+        </Link>
+
+        <button
+          type="button"
+          className="rounded-lg p-2 text-black md:hidden"
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            {menuOpen ? (
+              <path d="M6 6l12 12M18 6L6 18" />
+            ) : (
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            )}
+          </svg>
+        </button>
+
+        <div className="hidden items-center gap-1 text-sm font-semibold md:flex">
+          {navItems.map((item) => (
+            <Link key={item.href} href={item.href} className={linkClass(item.href)}>
+              {item.label}
+            </Link>
+          ))}
+          <AuthButton
+            authChecked={authChecked}
+            email={email}
+            onLogout={handleLogout}
+            linkClass={linkClass("/login")}
+          />
         </div>
-      ))}
-    </nav>
+      </nav>
+
+      {menuOpen && (
+        <div className="grid gap-1 border-t border-black/10 px-4 py-3 text-sm font-semibold md:hidden">
+          {navItems.map((item) => (
+            <Link key={item.href} href={item.href} className={linkClass(item.href)}>
+              {item.label}
+            </Link>
+          ))}
+          <AuthButton
+            authChecked={authChecked}
+            email={email}
+            onLogout={handleLogout}
+            linkClass={linkClass("/login")}
+          />
+        </div>
+      )}
+    </header>
+  );
+}
+
+function AuthButton({
+  authChecked,
+  email,
+  onLogout,
+  linkClass,
+}: {
+  authChecked: boolean;
+  email: string | null;
+  onLogout: () => void;
+  linkClass: string;
+}) {
+  if (!authChecked) return null;
+
+  if (email) {
+    return (
+      <button
+        type="button"
+        onClick={onLogout}
+        title={`Signed in as ${email}`}
+        className="rounded-full px-3 py-2 text-left text-gray-700 transition hover:bg-black/5 hover:text-black"
+      >
+        Log Out
+      </button>
+    );
+  }
+
+  return (
+    <Link href="/login" className={linkClass}>
+      Log In
+    </Link>
   );
 }

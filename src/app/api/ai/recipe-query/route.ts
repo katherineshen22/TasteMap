@@ -1,19 +1,15 @@
-import OpenAI from "openai";
 import { NextResponse } from "next/server";
-
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { getOpenAI, missingKeyResponse } from "@/lib/openai";
 
 export async function POST(request: Request) {
+  const client = getOpenAI();
+  if (!client) return missingKeyResponse();
+
   try {
     const { dish } = await request.json();
 
-    if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json(
-        { error: "Missing OpenAI API key" },
-        { status: 500 }
-      );
+    if (!dish?.dish) {
+      return NextResponse.json({ error: "Missing dish." }, { status: 400 });
     }
 
     const response = await client.responses.create({
@@ -22,27 +18,25 @@ export async function POST(request: Request) {
         {
           role: "system",
           content:
-            "You create concise recipe search queries. Return only the search query, no extra explanation.",
+            "You create concise recipe search queries (2-5 words) for a recipe search engine. Return only the search query, no quotes or explanation.",
         },
         {
           role: "user",
           content: `Create a recipe search query for this dish:
 Dish: ${dish.dish}
-Cuisine: ${dish.cuisine}
-Tags: ${dish.tags?.join(", ")}
-Notes: ${dish.notes}`,
+Cuisine: ${dish.cuisine || ""}
+Tags: ${(dish.tags || []).join(", ")}
+Notes: ${dish.notes || ""}`,
         },
       ],
     });
 
-    return NextResponse.json({
-      query: response.output_text.trim(),
-    });
+    const query = response.output_text.trim().replace(/^["']|["']$/g, "");
+    return NextResponse.json({ query });
   } catch (error) {
     console.error("AI recipe query error:", error);
-
     return NextResponse.json(
-      { error: "Failed to generate recipe query." },
+      { error: "Failed to generate a smarter search. Please try again." },
       { status: 500 }
     );
   }

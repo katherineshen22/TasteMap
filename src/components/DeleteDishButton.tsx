@@ -1,39 +1,42 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-type DeleteDishButtonProps = {
-  dishId: number;
-};
-
-export default function DeleteDishButton({ dishId }: DeleteDishButtonProps) {
+export default function DeleteDishButton({ dishId }: { dishId: number }) {
   const router = useRouter();
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleDelete() {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this dish?"
-    );
+    if (!window.confirm("Delete this dish? This can't be undone.")) return;
 
-    if (!confirmed) return;
+    setDeleting(true);
+    setError("");
 
     const { error } = await supabase.from("dishes").delete().eq("id", dishId);
 
     if (error) {
-      alert(`Error deleting dish: ${error.message}`);
+      setError(`Couldn't delete: ${error.message}`);
+      setDeleting(false);
       return;
     }
 
     router.push("/rankings");
-    router.refresh();
   }
 
   return (
-    <button
-      onClick={handleDelete}
-      className="mt-4 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white"
-    >
-      Delete Dish
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={handleDelete}
+        disabled={deleting}
+        className="inline-flex items-center justify-center rounded-full border border-red-200 px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-red-600 transition hover:bg-red-600 hover:text-white disabled:opacity-50"
+      >
+        {deleting ? "Deleting..." : "Delete"}
+      </button>
+      {error && <p className="w-full text-sm text-red-600">{error}</p>}
+    </>
   );
 }

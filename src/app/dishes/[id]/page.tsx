@@ -1,173 +1,162 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
+import { useParams } from "next/navigation";
 import DeleteDishButton from "@/components/DeleteDishButton";
 import InternetRecipeSearch from "@/components/InternetRecipeSearch";
+import {
+  EmptyState,
+  ErrorMessage,
+  LoadingState,
+  RatingBadge,
+  TagPill,
+  cardClass,
+  secondaryButtonClass,
+} from "@/components/ui";
+import { useRequireUser } from "@/hooks/useRequireUser";
 import { recipes } from "@/data/sampleData";
 import { recommendRecipes } from "@/lib/recommendations";
 import { supabase } from "@/lib/supabaseClient";
 import { Dish } from "@/types/food";
 
 export default function DishDetailsPage() {
-  const params = useParams();
-  const router = useRouter();
-
-  const id = params.id as string;
+  const { id } = useParams<{ id: string }>();
+  const user = useRequireUser();
 
   const [dish, setDish] = useState<Dish | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    async function loadDish() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    if (!user) return;
 
-      if (!user) {
-        router.push("/login");
-        return;
-      }
+    supabase
+      .from("dishes")
+      .select("*")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) setError(error.message);
+        setDish((data as Dish) || null);
+        setLoading(false);
+      });
+  }, [id, user]);
 
-      const { data, error } = await supabase
-        .from("dishes")
-        .select("*")
-        .eq("id", id)
-        .eq("user_id", user.id)
-        .maybeSingle();
+  if (!user || loading) return <LoadingState label="Loading dish..." />;
 
-      if (error) {
-        setError(error.message);
-      }
+  if (!dish) {
+    return (
+      <>
+        <ErrorMessage message={error} />
+        <EmptyState
+          title="Dish not found"
+          description="It may have been deleted, or it belongs to a different account."
+          actionHref="/rankings"
+          actionLabel="Back to Rankings"
+        />
+      </>
+    );
+  }
 
-      setDish((data || null) as Dish | null);
-      setLoading(false);
-    }
-
-    loadDish();
-  }, [id, router]);
-
-  const matchingRecipes = dish
-    ? recommendRecipes([dish], recipes).slice(0, 3)
-    : [];
+  // Treat this one dish as "liked" so we always get relevant matches.
+  const matchingRecipes = recommendRecipes(
+    [{ ...dish, rating: 10 }],
+    recipes
+  ).slice(0, 3);
 
   return (
-    <main className="min-h-screen bg-[#faf7ef] p-8">
-      <Navbar />
+    <>
+      <Link
+        href="/rankings"
+        className="mb-6 inline-block text-sm font-semibold text-gray-600 hover:text-black"
+      >
+        ← Back to rankings
+      </Link>
 
-      {loading && <p className="text-gray-700">Loading dish...</p>}
-
-      {error && (
-        <p className="mb-4 text-red-600">
-          Error loading dish: {error}
-        </p>
-      )}
-
-      {!loading && !dish ? (
-        <p className="text-gray-700">
-          Dish not found. It may have been deleted, or you may not be logged into
-          the account that created it.
-        </p>
-      ) : null}
-
-      {dish && (
-        <>
-          <section className="mb-8 max-w-3xl rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
-            <p className="mb-2 text-sm text-gray-500">{dish.restaurant}</p>
-
-            <h1 className="mb-2 text-4xl font-black text-black">
+      <section className={`${cardClass} mb-10 p-6 sm:p-8`}>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wider text-gray-500">
+              {dish.restaurant}
+              {dish.cuisine ? ` · ${dish.cuisine}` : ""}
+            </p>
+            <h1 className="mt-1 text-3xl font-black text-black sm:text-4xl">
               {dish.dish}
             </h1>
+          </div>
+          <div className="text-xl">
+            <RatingBadge rating={dish.rating} />
+          </div>
+        </div>
 
-            <p className="mb-2 text-gray-700">{dish.cuisine}</p>
+        {dish.tags?.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {dish.tags.map((tag) => (
+              <TagPill key={tag} tag={tag} />
+            ))}
+          </div>
+        )}
 
-            <p className="mb-4 text-xl font-semibold text-gray-900">
-              {dish.rating}/10
-            </p>
+        {dish.notes && (
+          <p className="mt-5 whitespace-pre-line leading-7 text-gray-700">
+            {dish.notes}
+          </p>
+        )}
 
-            <div className="mb-4 flex flex-wrap gap-2">
-              {dish.tags?.map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full bg-[#faf7ef] px-3 py-1 text-sm text-gray-800"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
+        {dish.created_at && (
+          <p className="mt-5 text-xs text-gray-400">
+            Added {new Date(dish.created_at).toLocaleDateString()}
+          </p>
+        )}
 
-            <p className="text-gray-700">{dish.notes}</p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link href={`/dishes/${dish.id}/edit`} className={secondaryButtonClass}>
+            Edit
+          </Link>
+          <DeleteDishButton dishId={dish.id} />
+        </div>
+      </section>
 
-            <Link
-              href={`/dishes/${dish.id}/edit`}
-              className="mt-4 mr-3 inline-block rounded-full border border-black px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-black transition hover:bg-black hover:text-white"
-            >
-              Edit Dish
-            </Link>
-
-            <DeleteDishButton dishId={dish.id} />
-          </section>
-
-          <section className="max-w-3xl">
-            <h2 className="mb-4 text-2xl font-black text-black">
-              Cook something like this
-            </h2>
-
-            <div className="grid gap-4">
-              {matchingRecipes.map((recipe) => (
-                <div
-                  key={recipe.id}
-                  className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm"
-                >
-                  <h3 className="text-xl font-semibold text-gray-900">
-                    {recipe.title}
-                  </h3>
-
-                  <p className="text-gray-600">
+      {matchingRecipes.some((recipe) => recipe.score > 0) && (
+        <section className="mb-10">
+          <h2 className="mb-4 text-2xl font-black text-black">
+            Cook something like this
+          </h2>
+          <div className="grid gap-4 md:grid-cols-3">
+            {matchingRecipes
+              .filter((recipe) => recipe.score > 0)
+              .map((recipe) => (
+                <div key={recipe.id} className={cardClass}>
+                  <h3 className="font-bold text-gray-900">{recipe.title}</h3>
+                  <p className="text-sm text-gray-600">
                     {recipe.cuisine} · {recipe.timeMinutes} min ·{" "}
                     {recipe.difficulty}
                   </p>
-
-                  <p className="mt-1 text-sm text-gray-500">{recipe.reason}</p>
-
-                  <p className="mt-2 text-sm text-gray-600">
-                    Ingredients: {recipe.ingredients.join(", ")}
-                  </p>
+                  <p className="mt-2 text-sm text-gray-500">{recipe.reason}</p>
                 </div>
               ))}
-            </div>
-
-            <div className="mt-8">
-              <h2 className="mb-4 text-2xl font-black text-black">
-                Search internet recipes like this dish
-              </h2>
-
-              <InternetRecipeSearch
-                defaultQuery={dish.dish}
-                defaultCuisine={dish.cuisine}
-                defaultTags={dish.tags?.slice(0, 2).join(", ") || ""}
-                dishForAI={{
-                  restaurant: dish.restaurant,
-                  dish: dish.dish,
-                  cuisine: dish.cuisine,
-                  tags: dish.tags || [],
-                  notes: dish.notes || "",
-                }}
-              />
-            </div>
-          </section>
-
-          <Link
-            href="/rankings"
-            className="mt-8 inline-block text-gray-700 underline"
-          >
-            ← Back to rankings
-          </Link>
-        </>
+          </div>
+        </section>
       )}
-    </main>
+
+      <section>
+        <h2 className="mb-4 text-2xl font-black text-black">
+          Find recipes online
+        </h2>
+        <InternetRecipeSearch
+          defaultQuery={dish.dish}
+          defaultCuisine={dish.cuisine}
+          dishForAI={{
+            restaurant: dish.restaurant,
+            dish: dish.dish,
+            cuisine: dish.cuisine,
+            tags: dish.tags || [],
+            notes: dish.notes || "",
+          }}
+        />
+      </section>
+    </>
   );
 }

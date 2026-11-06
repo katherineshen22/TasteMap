@@ -1,64 +1,58 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import DishCard from "@/components/DishCard";
+import { inputClass } from "@/components/ui";
 import { Dish } from "@/types/food";
 
-type SearchableRankingsProps = {
-  dishes: Dish[];
-};
-
-export default function SearchableRankings({ dishes }: SearchableRankingsProps) {
+export default function SearchableRankings({ dishes }: { dishes: Dish[] }) {
   const [search, setSearch] = useState("");
+  const searchText = search.trim().toLowerCase();
 
-  const filteredDishes = dishes.filter((dish) => {
-    const searchText = search.toLowerCase();
+  // Keep each dish's overall rank so numbers don't shift while searching.
+  const ranked = dishes.map((dish, index) => ({ dish, rank: index + 1 }));
 
-    return (
-      dish.dish.toLowerCase().includes(searchText) ||
-      dish.restaurant.toLowerCase().includes(searchText) ||
-      dish.cuisine?.toLowerCase().includes(searchText) ||
-      dish.tags?.join(" ").toLowerCase().includes(searchText)
-    );
+  const filtered = ranked.filter(({ dish }) => {
+    if (!searchText) return true;
+    return [dish.dish, dish.restaurant, dish.cuisine, dish.tags?.join(" ")]
+      .filter(Boolean)
+      .some((field) => field!.toLowerCase().includes(searchText));
   });
 
   return (
-    <section className="max-w-3xl">
-      <input
-        className="mb-6 w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900"
-        placeholder="Search by dish, restaurant, cuisine, or tag..."
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-      />
+    <section>
+      <div className="relative mb-6">
+        <input
+          type="search"
+          className={inputClass}
+          placeholder="Search by dish, restaurant, cuisine, or tag..."
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          aria-label="Search dishes"
+        />
+      </div>
 
-      {filteredDishes.length === 0 ? (
-        <p className="text-gray-700">No dishes match your search.</p>
+      {searchText && (
+        <p className="mb-3 text-sm text-gray-500">
+          {filtered.length} of {dishes.length} dishes
+        </p>
+      )}
+
+      {filtered.length === 0 ? (
+        <div className="py-8 text-center text-gray-600">
+          No dishes match &ldquo;{search}&rdquo;.{" "}
+          <button
+            type="button"
+            className="font-semibold text-black underline"
+            onClick={() => setSearch("")}
+          >
+            Clear search
+          </button>
+        </div>
       ) : (
-        <div className="grid gap-4">
-          {filteredDishes.map((dish, index) => (
-            <Link
-              key={dish.id}
-              href={`/dishes/${dish.id}`}
-              className="block rounded-xl bg-white p-4 shadow transition hover:shadow-md"
-            >
-              <p className="text-sm text-gray-500">#{index + 1}</p>
-
-              <h2 className="text-xl font-semibold text-gray-900">
-                {dish.dish}
-              </h2>
-
-              <p className="text-gray-600">{dish.restaurant}</p>
-
-              <p className="font-medium text-gray-800">
-                Rating: {dish.rating}/10
-              </p>
-
-              <p className="text-sm text-gray-500">
-                {dish.tags?.join(", ")}
-              </p>
-
-              <p className="mt-2 text-sm text-gray-600">{dish.notes}</p>
-            </Link>
+        <div className="grid gap-3">
+          {filtered.map(({ dish, rank }) => (
+            <DishCard key={dish.id} dish={dish} rank={rank} showNotes />
           ))}
         </div>
       )}

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Navbar from "@/components/Navbar";
+import { ErrorMessage, inputClass, primaryButtonClass } from "@/components/ui";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
@@ -11,28 +11,50 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"login" | "signup">("login");
-  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Already signed in? Skip the login screen.
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) router.replace("/");
+    });
+  }, [router]);
+
+  function switchMode() {
+    setMode(mode === "login" ? "signup" : "login");
+    setError("");
+    setNotice("");
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (loading) return;
+
     setLoading(true);
-    setMessage("");
+    setError("");
+    setNotice("");
 
     if (mode === "signup") {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      setLoading(false);
 
       if (error) {
-        setMessage(error.message);
-        setLoading(false);
+        setError(error.message);
         return;
       }
 
-      setMessage("Account created. Check your email if confirmation is required, then log in.");
-      setLoading(false);
+      // If email confirmation is off, Supabase signs the user in right away.
+      if (data.session) {
+        router.push("/");
+        return;
+      }
+
+      setNotice(
+        "Account created! Check your email for a confirmation link, then log in."
+      );
+      setMode("login");
       return;
     }
 
@@ -42,69 +64,84 @@ export default function LoginPage() {
     });
 
     if (error) {
-      setMessage(error.message);
+      setError(error.message);
       setLoading(false);
       return;
     }
 
-    setLoading(false);
     router.push("/");
-    router.refresh();
   }
 
   return (
-    <main className="min-h-screen bg-[#faf7ef] p-8">
-      <Navbar />
+    <section className="mx-auto mt-4 max-w-md rounded-2xl border border-black/10 bg-white p-8 shadow-sm">
+      <h1 className="mb-2 text-3xl font-black text-black">
+        {mode === "login" ? "Welcome back" : "Create your account"}
+      </h1>
 
-      <section className="mx-auto max-w-md rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
-        <h1 className="mb-2 text-3xl font-black text-black">
-          {mode === "login" ? "Log In" : "Create Account"}
-        </h1>
+      <p className="mb-6 text-gray-600">
+        {mode === "login"
+          ? "Log in to see your dishes and rankings."
+          : "Sign up to start building your personal TasteMap."}
+      </p>
 
-        <p className="mb-6 text-gray-700">
-          Log in to save your own dishes and build your personal TasteMap.
+      {notice && (
+        <p className="mb-4 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+          {notice}
         </p>
+      )}
 
-        <form onSubmit={handleSubmit} className="grid gap-4">
-          <label className="grid gap-1 font-medium text-gray-800">
-            Email
-            <input
-              className="rounded-xl border border-gray-300 bg-white p-3 font-normal text-gray-900 outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-            />
-          </label>
+      <form onSubmit={handleSubmit} className="grid gap-4">
+        <label className="grid gap-1.5 font-medium text-gray-800">
+          Email
+          <input
+            className={`${inputClass} font-normal`}
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+          />
+        </label>
 
-          <label className="grid gap-1 font-medium text-gray-800">
-            Password
-            <input
-              className="rounded-xl border border-gray-300 bg-white p-3 font-normal text-gray-900 outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-            />
-          </label>
+        <label className="grid gap-1.5 font-medium text-gray-800">
+          Password
+          <input
+            className={`${inputClass} font-normal`}
+            type="password"
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
+            minLength={6}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            required
+          />
+          {mode === "signup" && (
+            <span className="text-sm font-normal text-gray-500">
+              At least 6 characters.
+            </span>
+          )}
+        </label>
 
-          <button className="rounded-full bg-black px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-white transition hover:opacity-80">
-            {loading ? "Loading..." : mode === "login" ? "Log In" : "Sign Up"}
-          </button>
-        </form>
+        <ErrorMessage message={error} />
 
-        {message && <p className="mt-4 text-sm text-gray-700">{message}</p>}
+        <button type="submit" disabled={loading} className={primaryButtonClass}>
+          {loading
+            ? "Please wait..."
+            : mode === "login"
+              ? "Log In"
+              : "Sign Up"}
+        </button>
+      </form>
 
+      <p className="mt-6 text-center text-sm text-gray-600">
+        {mode === "login" ? "New to TasteMap?" : "Already have an account?"}{" "}
         <button
           type="button"
-          onClick={() => setMode(mode === "login" ? "signup" : "login")}
-          className="mt-6 text-sm font-semibold text-black underline"
+          onClick={switchMode}
+          className="font-semibold text-black underline"
         >
-          {mode === "login"
-            ? "Need an account? Sign up"
-            : "Already have an account? Log in"}
+          {mode === "login" ? "Create an account" : "Log in"}
         </button>
-      </section>
-    </main>
+      </p>
+    </section>
   );
 }

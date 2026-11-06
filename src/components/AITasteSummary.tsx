@@ -1,65 +1,66 @@
 "use client";
 
 import { useState } from "react";
+import { ErrorMessage, cardClass, primaryButtonClass } from "@/components/ui";
+import { fetchJson } from "@/lib/fetchJson";
 import { Dish } from "@/types/food";
 
-type AITasteSummaryProps = {
-  dishes: Dish[];
-};
-
-export default function AITasteSummary({ dishes }: AITasteSummaryProps) {
+export default function AITasteSummary({ dishes }: { dishes: Dish[] }) {
   const [summary, setSummary] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   async function generateSummary() {
+    if (loading) return;
     setLoading(true);
     setError("");
 
-    const response = await fetch("/api/ai/taste-summary", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ dishes }),
-    });
+    const { data, error } = await fetchJson<{ summary: string }>(
+      "/api/ai/taste-summary",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dishes }),
+      }
+    );
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      setError(data.error || "Something went wrong.");
-      setLoading(false);
-      return;
-    }
-
-    setSummary(data.summary);
+    if (error) setError(error);
+    else setSummary(data?.summary || "");
     setLoading(false);
   }
 
   return (
-    <section className="mb-8 max-w-3xl rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+    <section className={`${cardClass} p-6`}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-black text-black">AI Taste Summary</h2>
+          <h2 className="text-xl font-black text-black">✨ AI Taste Summary</h2>
           <p className="text-sm text-gray-600">
-            Generate a quick interpretation of your saved dishes.
+            What your saved dishes say about your taste.
           </p>
         </div>
 
         <button
+          type="button"
           onClick={generateSummary}
-          className="rounded-full bg-black px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-white transition hover:opacity-80"
+          disabled={loading}
+          className={primaryButtonClass}
         >
-          {loading ? "Thinking..." : "Generate"}
+          {loading ? "Thinking..." : summary ? "Regenerate" : "Generate"}
         </button>
       </div>
 
-      {error && <p className="text-red-600">{error}</p>}
+      <ErrorMessage message={error} />
+
+      {loading && !summary && (
+        <div className="grid animate-pulse gap-2">
+          <div className="h-3 w-full rounded bg-gray-200" />
+          <div className="h-3 w-5/6 rounded bg-gray-200" />
+          <div className="h-3 w-4/6 rounded bg-gray-200" />
+        </div>
+      )}
 
       {summary && (
-        <p className="whitespace-pre-line leading-7 text-gray-800">
-          {summary}
-        </p>
+        <p className="whitespace-pre-line leading-7 text-gray-800">{summary}</p>
       )}
     </section>
   );

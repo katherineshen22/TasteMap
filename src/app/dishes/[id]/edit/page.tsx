@@ -1,46 +1,88 @@
-import Navbar from "@/components/Navbar";
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import DishForm, { DishFormValues } from "@/components/DishForm";
+import {
+  EmptyState,
+  ErrorMessage,
+  LoadingState,
+  PageHeader,
+} from "@/components/ui";
+import { useRequireUser } from "@/hooks/useRequireUser";
 import { supabase } from "@/lib/supabaseClient";
 import { Dish } from "@/types/food";
-import EditDishForm from "@/components/EditDishForm";
 
-type EditDishPageProps = {
-  params: Promise<{
-    id: string;
-  }>;
-};
+// Client component: the Supabase session lives in the browser, so loading
+// the dish on the server returned nothing and the page always said "not found".
+export default function EditDishPage() {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const user = useRequireUser();
 
-export default async function EditDishPage({ params }: EditDishPageProps) {
-  const { id } = await params;
+  const [dish, setDish] = useState<Dish | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const { data, error } = await supabase
-    .from("dishes")
-    .select("*")
-    .eq("id", id)
-    .single();
+  useEffect(() => {
+    if (!user) return;
 
-  const dish = data as Dish | null;
+    supabase
+      .from("dishes")
+      .select("*")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) setError(error.message);
+        setDish((data as Dish) || null);
+        setLoading(false);
+      });
+  }, [id, user]);
+
+  async function handleSubmit(values: DishFormValues) {
+    if (!user) return "Please log in again.";
+
+    const { error } = await supabase
+      .from("dishes")
+      .update(values)
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    if (error) return `Couldn't update dish: ${error.message}`;
+
+    router.push(`/dishes/${id}`);
+    return null;
+  }
+
+  if (!user || loading) return <LoadingState label="Loading dish..." />;
 
   return (
-    <main className="min-h-screen bg-[#faf7ef] p-8">
-      <Navbar />
+    <>
+      <PageHeader title="Edit Dish" description="Update the details for this dish." />
+      <ErrorMessage message={error} />
 
-      <h1 className="text-4xl font-bold mb-2 text-gray-900">Edit Dish</h1>
-
-      <p className="text-gray-700 mb-8">
-        Update the rating, tags, or notes for this dish.
-      </p>
-
-      {error && (
-        <p className="mb-4 text-red-600">
-          Error loading dish: {error.message}
-        </p>
-      )}
-
-      {!dish ? (
-        <p className="text-gray-700">Dish not found.</p>
+      {dish ? (
+        <DishForm
+          initial={dish}
+          submitLabel="Save Changes"
+          savingLabel="Saving..."
+          onSubmit={handleSubmit}
+          secondaryAction={
+            <Link href={`/dishes/${id}`} className="text-sm font-semibold text-gray-600 hover:text-black">
+              Cancel
+            </Link>
+          }
+        />
       ) : (
-        <EditDishForm dish={dish} />
+        <EmptyState
+          title="Dish not found"
+          description="It may have been deleted, or it belongs to a different account."
+          actionHref="/rankings"
+          actionLabel="Back to Rankings"
+        />
       )}
-    </main>
+    </>
   );
 }

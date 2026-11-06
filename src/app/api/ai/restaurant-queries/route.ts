@@ -1,48 +1,25 @@
-import OpenAI from "openai";
 import { NextResponse } from "next/server";
-
-
-type Dish = {
-  restaurant: string;
-  dish: string;
-  cuisine: string;
-  rating: number;
-  tags: string[];
-  notes: string;
-};
+import {
+  compactDishes,
+  getOpenAI,
+  missingKeyResponse,
+  parseJsonFromModel,
+} from "@/lib/openai";
 
 export async function POST(request: Request) {
+  const client = getOpenAI();
+  if (!client) return missingKeyResponse();
+
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
-
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "Missing OpenAI API key. Check your .env.local file." },
-        { status: 500 }
-      );
-    }
-
-    const client = new OpenAI({
-      apiKey,
-    });
-
     const { dishes } = await request.json();
+    const compact = compactDishes(dishes);
 
-    if (!dishes || dishes.length === 0) {
+    if (compact.length === 0) {
       return NextResponse.json({
         queries: [],
         explanation: "Add dishes first so TasteMap can learn your preferences.",
       });
     }
-
-    const compactDishes = dishes.slice(0, 20).map((dish: Dish) => ({
-      restaurant: dish.restaurant,
-      dish: dish.dish,
-      cuisine: dish.cuisine,
-      rating: dish.rating,
-      tags: dish.tags,
-      notes: dish.notes,
-    }));
 
     const response = await client.responses.create({
       model: "gpt-5-mini",
@@ -50,14 +27,14 @@ export async function POST(request: Request) {
         {
           role: "system",
           content:
-            "You generate restaurant search ideas from a user's saved food preferences. Return valid JSON only.",
+            "You generate restaurant search ideas from a user's saved food preferences. Return valid JSON only, with no code fences.",
         },
         {
           role: "user",
           content: `Here are the user's saved dishes:
-${JSON.stringify(compactDishes, null, 2)}
+${JSON.stringify(compact, null, 2)}
 
-Generate 5 restaurant search queries and a short explanation.
+Generate 5 short restaurant search queries (like you'd type into Google Maps) and a one-sentence explanation.
 
 Return exactly this JSON shape:
 {
@@ -68,18 +45,19 @@ Return exactly this JSON shape:
       ],
     });
 
-    const text = response.output_text.trim();
-    const parsed = JSON.parse(text);
+    const parsed = parseJsonFromModel(response.output_text);
 
-    return NextResponse.json(parsed);
+    return NextResponse.json({
+      queries: Array.isArray(parsed.queries)
+        ? parsed.queries.filter((q: unknown) => typeof q === "string")
+        : [],
+      explanation:
+        typeof parsed.explanation === "string" ? parsed.explanation : "",
+    });
   } catch (error) {
     console.error("AI restaurant query error:", error);
-  
-    const message =
-      error instanceof Error ? error.message : "Unknown AI error";
-  
     return NextResponse.json(
-      { error: message },
+      { error: "Failed to generate restaurant ideas. Please try again." },
       { status: 500 }
     );
   }
