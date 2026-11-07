@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import TagSelector from "@/components/TagSelector";
 import { ErrorMessage, inputClass, primaryButtonClass } from "@/components/ui";
 import { normalizeCuisine, titleCase, uniqueSorted } from "@/lib/formatters";
+import { usePhotoUrls } from "@/hooks/usePhotoUrls";
+import { deleteDishPhoto, uploadDishPhoto } from "@/lib/photos";
 import { supabase } from "@/lib/supabaseClient";
-import { Dish } from "@/types/food";
+import { Dish, DishStatus } from "@/types/food";
 
 export type DishFormValues = Pick<
   Dish,
@@ -19,6 +21,8 @@ export type DishFormValues = Pick<
   | "neighborhood"
   | "price_level"
   | "visited_on"
+  | "status"
+  | "photo_path"
 >;
 
 const priceOptions = [
@@ -36,6 +40,8 @@ function todayLocal() {
 
 type DishFormProps = {
   initial?: Partial<DishFormValues>;
+  // Overrides initial.status, e.g. "Mark as tried" opens the form as "tried".
+  forceStatus?: DishStatus;
   submitLabel: string;
   savingLabel: string;
   onSubmit: (values: DishFormValues) => Promise<string | null>;
@@ -49,17 +55,42 @@ const cuisineSuggestions = [
 
 export default function DishForm({
   initial = {},
+  forceStatus,
   submitLabel,
   savingLabel,
   onSubmit,
   secondaryAction,
 }: DishFormProps) {
+  const [status, setStatus] = useState<DishStatus>(
+    forceStatus || initial.status || "tried"
+  );
+  const wantToTry = status === "want_to_try";
   const [restaurant, setRestaurant] = useState(initial.restaurant || "");
   const [dish, setDish] = useState(initial.dish || "");
   const [cuisine, setCuisine] = useState(initial.cuisine || "");
   const [rating, setRating] = useState(
-    initial.rating !== undefined ? String(initial.rating) : "8"
+    initial.rating != null ? String(initial.rating) : "8"
   );
+
+  // Photo: a newly picked file, or whether to remove the existing one.
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [removePhoto, setRemovePhoto] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState("");
+  const existingPhotoUrl = usePhotoUrls([initial.photo_path])[
+    initial.photo_path || ""
+  ];
+  const shownPhoto =
+    photoPreview || (!removePhoto && initial.photo_path ? existingPhotoUrl : "");
+
+  useEffect(() => {
+    if (!photoFile) {
+      setPhotoPreview("");
+      return;
+    }
+    const url = URL.createObjectURL(photoFile);
+    setPhotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photoFile]);
   const [tags, setTags] = useState<string[]>(initial.tags || []);
   const [notes, setNotes] = useState(initial.notes || "");
   const [city, setCity] = useState(initial.city || "");
@@ -67,30 +98,52 @@ export default function DishForm({
   const [priceLevel, setPriceLevel] = useState<number | null>(
     initial.price_level ?? null
   );
-  // New dishes default to today; existing dishes keep whatever they had.
+  // New dishes (and wishlist items being marked as tried) default to today;
+  // existing tried dishes keep whatever they had, even if blank.
   const [visitedOn, setVisitedOn] = useState(
-    "restaurant" in initial ? initial.visited_on || "" : todayLocal()
+    initial.visited_on ||
+      ("visited_on" in initial && initial.status !== "want_to_try"
+        ? ""
+        : todayLocal())
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   // The user's past dishes power autocomplete and restaurant autofill.
   const [pastDishes, setPastDishes] = useState<Dish[]>([]);
+  const [userId, setUserId] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
+      setUserId(user.id);
       const { data } = await supabase
         .from("dishes")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
-      if (!cancelled && data) setPastDishes(data as Dish[]);
+      if (cancelled || !data) return;
+      setPastDishes(data as Dish[]);
+
+      // Opened from "Add dish here": fill in what we know about the place.
+      const preset = initial.restaurant?.trim().toLowerCase();
+      const match =
+        preset &&
+        !initial.dish &&
+        (data as Dish[]).find((d) => d.restaurant.trim().toLowerCase() === preset);
+      if (match) {
+        setCuisine((value) => value || match.cuisine || "");
+        setCity((value) => value || match.city || "");
+        setNeighborhood((value) => value || match.neighborhood || "");
+        setPriceLevel((value) => value ?? match.price_level ?? null);
+      }
     });
     return () => {
       cancelled = true;
     };
+    // Runs once on mount; `initial` is only the starting values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const restaurantOptions = uniqueSorted(pastDishes.map((d) => d.restaurant));
@@ -125,31 +178,63 @@ export default function DishForm({
     event.preventDefault();
     if (saving) return;
 
-    if (!ratingValid) {
+    if (!wantToTry && !ratingValid) {
       setError("Rating must be a number between 1 and 10.");
+      return;
+    }
+    if (!wantToTry && !dish.trim()) {
+      setError("Add the name of the dish you tried.");
       return;
     }
 
     setSaving(true);
     setError("");
 
+    // Upload a new photo first so its path can be saved with the dish.
+    const oldPhoto = initial.photo_path || null;
+    let photoPath = removePhoto ? null : oldPhoto;
+    let uploadedPath: string | null = null;
+    if (photoFile) {
+      if (!userId) {
+        setError("Please log in again to upload photos.");
+        setSaving(false);
+        return;
+      }
+      try {
+        uploadedPath = await uploadDishPhoto(userId, photoFile);
+        photoPath = uploadedPath;
+      } catch (uploadError) {
+        setError((uploadError as Error).message);
+        setSaving(false);
+        return;
+      }
+    }
+
     const errorMessage = await onSubmit({
+      status,
       restaurant: restaurant.trim(),
       dish: dish.trim(),
       cuisine: normalizeCuisine(cuisine),
-      rating: Math.round(ratingNumber * 10) / 10,
+      rating: wantToTry ? null : Math.round(ratingNumber * 10) / 10,
       tags,
       notes: notes.trim(),
       city: city.trim() ? titleCase(city) : null,
       neighborhood: neighborhood.trim() ? titleCase(neighborhood) : null,
       price_level: priceLevel,
-      visited_on: visitedOn || null,
+      visited_on: wantToTry ? null : visitedOn || null,
+      photo_path: photoPath,
     });
 
     if (errorMessage) {
+      // Don't leave an orphaned upload behind if the dish didn't save.
+      await deleteDishPhoto(uploadedPath);
       setError(errorMessage);
       setSaving(false);
+      return;
     }
+
+    // Saved: clean up the photo that was replaced or removed.
+    if (oldPhoto && oldPhoto !== photoPath) await deleteDishPhoto(oldPhoto);
     // On success the parent navigates away, so keep the button disabled.
   }
 
@@ -158,15 +243,49 @@ export default function DishForm({
       onSubmit={handleSubmit}
       className="grid max-w-2xl gap-6 rounded-2xl border border-black/10 bg-white p-6 shadow-sm"
     >
+      <div
+        className="grid grid-cols-2 rounded-full border border-black/10 p-1 text-sm font-semibold"
+        role="radiogroup"
+        aria-label="Have you tried it?"
+      >
+        {(
+          [
+            ["tried", "✓ I've tried it"],
+            ["want_to_try", "☆ Want to try"],
+          ] as [DishStatus, string][]
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={status === value}
+            onClick={() => setStatus(value)}
+            className={
+              status === value
+                ? "rounded-full bg-black px-4 py-2 text-white"
+                : "rounded-full px-4 py-2 text-gray-600 hover:text-black"
+            }
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="grid gap-1.5 font-medium text-gray-800">
-          Dish name *
+          {wantToTry ? (
+            <span>
+              Dish <span className="font-normal text-gray-500">(optional)</span>
+            </span>
+          ) : (
+            "Dish name *"
+          )}
           <input
             className={`${inputClass} font-normal`}
-            placeholder="e.g. Spicy Miso Ramen"
+            placeholder={wantToTry ? "Leave blank for the whole menu" : "e.g. Spicy Miso Ramen"}
             value={dish}
             onChange={(event) => setDish(event.target.value)}
-            required
+            required={!wantToTry}
             autoFocus
           />
         </label>
@@ -249,16 +368,18 @@ export default function DishForm({
           </div>
         </fieldset>
 
-        <label className="grid gap-1.5 font-medium text-gray-800">
-          Date visited
-          <input
-            type="date"
-            className={`${inputClass} font-normal`}
-            value={visitedOn}
-            max={todayLocal()}
-            onChange={(event) => setVisitedOn(event.target.value)}
-          />
-        </label>
+        {!wantToTry && (
+          <label className="grid gap-1.5 font-medium text-gray-800">
+            Date visited
+            <input
+              type="date"
+              className={`${inputClass} font-normal`}
+              value={visitedOn}
+              max={todayLocal()}
+              onChange={(event) => setVisitedOn(event.target.value)}
+            />
+          </label>
+        )}
       </div>
 
       <label className="grid gap-1.5 font-medium text-gray-800">
@@ -277,6 +398,7 @@ export default function DishForm({
         </datalist>
       </label>
 
+      {!wantToTry && (
       <div className="grid gap-2">
         <label htmlFor="rating" className="font-medium text-gray-800">
           Rating *
@@ -310,14 +432,73 @@ export default function DishForm({
           1 = never again · 5 = fine · 8+ = would order again · 10 = perfect
         </p>
       </div>
+      )}
 
       <TagSelector selectedTags={tags} setSelectedTags={setTags} />
 
+      <div className="grid gap-2">
+        <span className="font-medium text-gray-800">Photo</span>
+        {shownPhoto ? (
+          <div className="flex items-end gap-4">
+            {/* eslint-disable-next-line @next/next/no-img-element -- signed/blob URLs */}
+            <img
+              src={shownPhoto}
+              alt="Dish photo preview"
+              className="h-32 w-32 rounded-xl object-cover"
+            />
+            <div className="flex flex-col gap-2 text-sm font-semibold">
+              <label className="cursor-pointer text-gray-700 hover:text-black">
+                Change photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) setPhotoFile(file);
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                className="text-left text-red-600 hover:underline"
+                onClick={() => {
+                  setPhotoFile(null);
+                  setRemovePhoto(true);
+                }}
+              >
+                Remove photo
+              </button>
+            </div>
+          </div>
+        ) : (
+          <label className="flex h-24 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-gray-300 text-sm font-semibold text-gray-500 transition hover:border-black hover:text-black">
+            📷 Add a photo
+            <input
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) {
+                  setPhotoFile(file);
+                  setRemovePhoto(false);
+                }
+              }}
+            />
+          </label>
+        )}
+      </div>
+
       <label className="grid gap-1.5 font-medium text-gray-800">
-        Notes
+        {wantToTry ? "Why do you want to try it?" : "Notes"}
         <textarea
           className={`${inputClass} min-h-24 font-normal`}
-          placeholder="What did you like about it? Would you order it again?"
+          placeholder={
+            wantToTry
+              ? "e.g. Friend recommended the tonkotsu, saw it on TikTok..."
+              : "What did you like about it? Would you order it again?"
+          }
           value={notes}
           onChange={(event) => setNotes(event.target.value)}
         />

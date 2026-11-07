@@ -7,11 +7,13 @@ import { Dish } from "@/types/food";
 
 type Status = "loading" | "logged-out" | "ready";
 
-// Loads the signed-in user's dishes, sorted by rating (highest first).
+// Loads the signed-in user's dishes. `dishes` holds rated ("tried") dishes,
+// sorted by rating (highest first); `wantToTry` holds the wishlist, newest first.
 export function useUserDishes() {
   const [status, setStatus] = useState<Status>("loading");
   const [user, setUser] = useState<User | null>(null);
   const [dishes, setDishes] = useState<Dish[]>([]);
+  const [wantToTry, setWantToTry] = useState<Dish[]>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -35,14 +37,17 @@ export function useUserDishes() {
         .from("dishes")
         .select("*")
         .eq("user_id", user.id)
-        .order("rating", { ascending: false });
+        .order("rating", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false });
 
       if (cancelled) return;
 
       if (error) {
         setError(error.message);
       } else {
-        setDishes((data || []) as Dish[]);
+        const all = (data || []) as Dish[];
+        setDishes(all.filter((dish) => dish.status !== "want_to_try"));
+        setWantToTry(all.filter((dish) => dish.status === "want_to_try"));
       }
 
       setStatus("ready");
@@ -55,5 +60,5 @@ export function useUserDishes() {
     };
   }, []);
 
-  return { status, user, dishes, error };
+  return { status, user, dishes, wantToTry, error };
 }

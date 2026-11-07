@@ -1,15 +1,18 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import DishForm, { DishFormValues } from "@/components/DishForm";
 import { LoadingState, PageHeader } from "@/components/ui";
 import { useRequireUser } from "@/hooks/useRequireUser";
 import { supabase } from "@/lib/supabaseClient";
 
-export default function AddDishPage() {
+function AddDish() {
   const router = useRouter();
+  const params = useSearchParams();
   const user = useRequireUser();
+  const startAsWantToTry = params.get("list") === "want";
 
   async function handleSubmit(values: DishFormValues) {
     if (!user) return "Please log in before adding a dish.";
@@ -20,9 +23,13 @@ export default function AddDishPage() {
       .select("id")
       .single();
 
-    if (error) return `Couldn't save dish: ${error.message}`;
+    if (error) return `Couldn't save: ${error.message}`;
 
-    router.push(data?.id ? `/dishes/${data.id}` : "/rankings");
+    if (values.status === "want_to_try") {
+      router.push("/want-to-try");
+    } else {
+      router.push(data?.id ? `/dishes/${data.id}` : "/rankings");
+    }
     return null;
   }
 
@@ -31,19 +38,34 @@ export default function AddDishPage() {
   return (
     <>
       <PageHeader
-        title="Add a Dish"
-        description="Log a restaurant dish so TasteMap can learn what you like."
+        title={startAsWantToTry ? "Add to Want to Try" : "Add a Dish"}
+        description="Log a dish you've had, or save a place you want to try."
       />
       <DishForm
-        submitLabel="Save Dish"
+        initial={{
+          status: startAsWantToTry ? "want_to_try" : "tried",
+          restaurant: params.get("restaurant") || "",
+        }}
+        submitLabel="Save"
         savingLabel="Saving..."
         onSubmit={handleSubmit}
         secondaryAction={
-          <Link href="/rankings" className="text-sm font-semibold text-gray-600 hover:text-black">
+          <Link
+            href={startAsWantToTry ? "/want-to-try" : "/rankings"}
+            className="text-sm font-semibold text-gray-600 hover:text-black"
+          >
             Cancel
           </Link>
         }
       />
     </>
+  );
+}
+
+export default function AddDishPage() {
+  return (
+    <Suspense fallback={<LoadingState />}>
+      <AddDish />
+    </Suspense>
   );
 }

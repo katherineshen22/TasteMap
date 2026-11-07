@@ -13,8 +13,10 @@ import {
   RatingBadge,
   TagPill,
   cardClass,
+  primaryButtonClass,
   secondaryButtonClass,
 } from "@/components/ui";
+import { usePhotoUrls } from "@/hooks/usePhotoUrls";
 import { useRequireUser } from "@/hooks/useRequireUser";
 import { recipes } from "@/data/sampleData";
 import { recommendRecipes } from "@/lib/recommendations";
@@ -35,6 +37,8 @@ export default function DishDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [allDishes, setAllDishes] = useState<Dish[]>([]);
+  // allDishes includes this dish, so one request covers every photo here.
+  const photoUrls = usePhotoUrls(allDishes.map((d) => d.photo_path));
 
   useEffect(() => {
     if (!user) return;
@@ -88,17 +92,28 @@ export default function DishDetailsPage() {
     (other.city || "").toLowerCase() === (dish.city || "").toLowerCase();
   const moreHere = allDishes.filter(sameRestaurant);
   const location = formatLocation(dish);
+  const wantToTry = dish.status === "want_to_try" || dish.rating == null;
+  const photoUrl = dish.photo_path ? photoUrls[dish.photo_path] : undefined;
 
   return (
     <>
       <Link
-        href="/rankings"
+        href={wantToTry ? "/want-to-try" : "/rankings"}
         className="mb-6 inline-block text-sm font-semibold text-gray-600 hover:text-black"
       >
-        ← Back to rankings
+        ← Back to {wantToTry ? "Want to Try" : "rankings"}
       </Link>
 
-      <section className={`${cardClass} mb-10 p-6 sm:p-8`}>
+      <section className={`${cardClass} mb-10 overflow-hidden p-0`}>
+        {photoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element -- signed URL
+          <img
+            src={photoUrl}
+            alt={dish.dish || dish.restaurant}
+            className="max-h-[28rem] w-full object-cover"
+          />
+        )}
+        <div className="p-6 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wider text-gray-500">
@@ -107,7 +122,7 @@ export default function DishDetailsPage() {
                 .join(" · ")}
             </p>
             <h1 className="mt-1 text-3xl font-black text-black sm:text-4xl">
-              {dish.dish}
+              {dish.dish || dish.restaurant}
             </h1>
             {location && (
               <p className="mt-2 text-sm text-gray-600">
@@ -140,7 +155,13 @@ export default function DishDetailsPage() {
             )}
           </div>
           <div className="text-xl">
-            <RatingBadge rating={dish.rating} />
+            {wantToTry || dish.rating == null ? (
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700">
+                ☆ Want to try
+              </span>
+            ) : (
+              <RatingBadge rating={dish.rating} />
+            )}
           </div>
         </div>
 
@@ -167,6 +188,14 @@ export default function DishDetailsPage() {
         )}
 
         <div className="mt-6 flex flex-wrap gap-3">
+          {wantToTry && (
+            <Link
+              href={`/dishes/${dish.id}/edit?tried=1`}
+              className={primaryButtonClass}
+            >
+              ✓ Mark as Tried
+            </Link>
+          )}
           <Link href={`/dishes/${dish.id}/edit`} className={secondaryButtonClass}>
             Edit
           </Link>
@@ -178,7 +207,18 @@ export default function DishDetailsPage() {
           >
             Open in Maps ↗
           </a>
-          <DeleteDishButton dishId={dish.id} />
+          <Link
+            href={`/add?restaurant=${encodeURIComponent(dish.restaurant)}`}
+            className={secondaryButtonClass}
+          >
+            + Add Dish Here
+          </Link>
+          <DeleteDishButton
+            dishId={dish.id}
+            photoPath={dish.photo_path}
+            redirectTo={wantToTry ? "/want-to-try" : "/rankings"}
+          />
+        </div>
         </div>
       </section>
 
@@ -189,7 +229,11 @@ export default function DishDetailsPage() {
           </h2>
           <div className="grid gap-3">
             {moreHere.map((other) => (
-              <DishCard key={other.id} dish={other} />
+              <DishCard
+                key={other.id}
+                dish={other}
+                photoUrl={other.photo_path ? photoUrls[other.photo_path] : undefined}
+              />
             ))}
           </div>
         </section>
@@ -222,7 +266,7 @@ export default function DishDetailsPage() {
           Find recipes online
         </h2>
         <InternetRecipeSearch
-          defaultQuery={dish.dish}
+          defaultQuery={dish.dish || dish.cuisine}
           defaultCuisine={dish.cuisine}
           dishForAI={{
             restaurant: dish.restaurant,

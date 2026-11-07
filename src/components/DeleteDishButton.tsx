@@ -2,9 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { deleteDishPhoto } from "@/lib/photos";
 import { supabase } from "@/lib/supabaseClient";
 
-export default function DeleteDishButton({ dishId }: { dishId: number }) {
+export default function DeleteDishButton({
+  dishId,
+  photoPath,
+  redirectTo = "/rankings",
+}: {
+  dishId: number;
+  photoPath?: string | null;
+  redirectTo?: string;
+}) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
@@ -23,7 +32,8 @@ export default function DeleteDishButton({ dishId }: { dishId: number }) {
       return;
     }
 
-    router.push("/rankings");
+    await deleteDishPhoto(photoPath);
+    router.push(redirectTo);
   }
 
   return (

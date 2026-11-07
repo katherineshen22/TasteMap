@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import DishCard from "@/components/DishCard";
+import { usePhotoUrls } from "@/hooks/usePhotoUrls";
 import { RatingBadge, inputClass, secondaryButtonClass } from "@/components/ui";
 import {
   formatLocation,
@@ -55,6 +56,7 @@ function downloadCsv(dishes: Dish[]) {
 
 export default function SearchableRankings({ dishes }: { dishes: Dish[] }) {
   const params = useSearchParams();
+  const photoUrls = usePhotoUrls(dishes.map((d) => d.photo_path));
 
   const [search, setSearch] = useState("");
   const [city, setCity] = useState(params.get("city") || "");
@@ -322,6 +324,7 @@ export default function SearchableRankings({ dishes }: { dishes: Dish[] }) {
               key={dish.id}
               dish={dish}
               rank={sort === "rating" ? rank : undefined}
+              photoUrl={dish.photo_path ? photoUrls[dish.photo_path] : undefined}
               showNotes
             />
           ))}

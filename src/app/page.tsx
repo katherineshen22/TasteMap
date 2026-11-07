@@ -16,7 +16,7 @@ import { recipes } from "@/data/sampleData";
 import { recommendRecipes } from "@/lib/recommendations";
 
 export default function Home() {
-  const { status, dishes, error } = useUserDishes();
+  const { status, dishes, wantToTry, error } = useUserDishes();
 
   const topDishes = dishes.slice(0, 3);
   const recommendedRecipes = recommendRecipes(dishes, recipes).slice(0, 3);
@@ -84,6 +84,19 @@ export default function Home() {
       {status === "ready" && dishes.length > 0 && (
         <>
           <StatCards dishes={dishes} />
+
+          {wantToTry.length > 0 && (
+            <Link
+              href="/want-to-try"
+              className="mb-10 flex items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4 font-semibold text-blue-900 transition hover:border-blue-300"
+            >
+              <span>
+                ☆ {wantToTry.length} place{wantToTry.length === 1 ? "" : "s"} on
+                your Want to Try list
+              </span>
+              <span aria-hidden>→</span>
+            </Link>
+          )}
 
           <div className="grid gap-10 lg:grid-cols-2">
             <section>

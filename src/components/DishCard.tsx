@@ -7,12 +7,24 @@ export default function DishCard({
   dish,
   rank,
   showNotes = false,
+  photoUrl,
 }: {
   dish: Dish;
   rank?: number;
   showNotes?: boolean;
+  photoUrl?: string;
 }) {
   const location = formatLocation(dish);
+  const wantToTry = dish.status === "want_to_try";
+  // Wishlist items may be a whole restaurant rather than one dish.
+  const title = dish.dish || dish.restaurant;
+  const subtitle = [
+    dish.dish ? dish.restaurant : "",
+    dish.cuisine,
+    formatPrice(dish.price_level),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <Link
@@ -25,22 +37,36 @@ export default function DishCard({
         </span>
       )}
 
+      {photoUrl && (
+        // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire, so skip next/image caching
+        <img
+          src={photoUrl}
+          alt=""
+          className="h-20 w-20 shrink-0 rounded-xl object-cover"
+          loading="lazy"
+        />
+      )}
+
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="truncate text-lg font-bold text-gray-900 group-hover:underline">
-              {dish.dish}
+              {title}
             </h3>
-            <p className="truncate text-sm text-gray-600">
-              {[dish.restaurant, dish.cuisine, formatPrice(dish.price_level)]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
+            {subtitle && (
+              <p className="truncate text-sm text-gray-600">{subtitle}</p>
+            )}
             {location && (
               <p className="truncate text-xs text-gray-500">📍 {location}</p>
             )}
           </div>
-          <RatingBadge rating={dish.rating} />
+          {wantToTry || dish.rating == null ? (
+            <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+              ☆ Want to try
+            </span>
+          ) : (
+            <RatingBadge rating={dish.rating} />
+          )}
         </div>
 
         {dish.tags?.length > 0 && (

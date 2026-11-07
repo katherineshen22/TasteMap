@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import DishForm, { DishFormValues } from "@/components/DishForm";
 import {
   EmptyState,
@@ -17,8 +17,18 @@ import { Dish } from "@/types/food";
 // Client component: the Supabase session lives in the browser, so loading
 // the dish on the server returned nothing and the page always said "not found".
 export default function EditDishPage() {
+  return (
+    <Suspense fallback={<LoadingState label="Loading dish..." />}>
+      <EditDish />
+    </Suspense>
+  );
+}
+
+function EditDish() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  // "Mark as tried" on a want-to-try item links here with ?tried=1.
+  const markingTried = useSearchParams().get("tried") === "1";
   const user = useRequireUser();
 
   const [dish, setDish] = useState<Dish | null>(null);
@@ -60,12 +70,20 @@ export default function EditDishPage() {
 
   return (
     <>
-      <PageHeader title="Edit Dish" description="Update the details for this dish." />
+      <PageHeader
+        title={markingTried ? "How was it?" : "Edit Dish"}
+        description={
+          markingTried
+            ? "Rate it to move it from Want to Try into your rankings."
+            : "Update the details for this dish."
+        }
+      />
       <ErrorMessage message={error} />
 
       {dish ? (
         <DishForm
           initial={dish}
+          forceStatus={markingTried ? "tried" : undefined}
           submitLabel="Save Changes"
           savingLabel="Saving..."
           onSubmit={handleSubmit}
