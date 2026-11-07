@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   ErrorMessage,
   inputClass,
@@ -195,43 +196,55 @@ export default function InternetRecipeSearch({
       {recipes.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {recipes.map((recipe) => (
-            <a
+            <div
               key={recipe.id}
-              href={recipe.sourceUrl || "#"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              className="flex flex-col overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
-              {recipe.image ? (
-                <Image
-                  src={recipe.image}
-                  alt={recipe.title}
-                  width={500}
-                  height={300}
-                  className="h-44 w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-44 items-center justify-center bg-[#f1ece0] text-4xl">
-                  🍽️
-                </div>
-              )}
-
-              <div className="p-4">
-                <h3 className="font-bold text-gray-900 group-hover:underline">
-                  {recipe.title}
-                </h3>
-                <p className="mt-1 text-sm text-gray-600">
-                  {recipe.readyInMinutes ? `${recipe.readyInMinutes} min` : ""}
-                  {recipe.readyInMinutes && recipe.servings ? " · " : ""}
-                  {recipe.servings ? `${recipe.servings} servings` : ""}
-                </p>
-                {recipe.sourceUrl && (
-                  <p className="mt-3 text-sm font-semibold text-gray-900">
-                    Open recipe ↗
-                  </p>
+              <a
+                href={recipe.sourceUrl || "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex-1"
+              >
+                {recipe.image ? (
+                  <Image
+                    src={recipe.image}
+                    alt={recipe.title}
+                    width={500}
+                    height={300}
+                    className="h-44 w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-44 items-center justify-center bg-[#f1ece0] text-4xl">
+                    🍽️
+                  </div>
                 )}
-              </div>
-            </a>
+
+                <div className="p-4">
+                  <h3 className="font-bold text-gray-900 group-hover:underline">
+                    {recipe.title}
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {recipe.readyInMinutes ? `${recipe.readyInMinutes} min` : ""}
+                    {recipe.readyInMinutes && recipe.servings ? " · " : ""}
+                    {recipe.servings ? `${recipe.servings} servings` : ""}
+                  </p>
+                  {recipe.sourceUrl && (
+                    <p className="mt-3 text-sm font-semibold text-gray-900">
+                      Open recipe ↗
+                    </p>
+                  )}
+                </div>
+              </a>
+              {recipe.sourceUrl && (
+                <Link
+                  href={`/recipes/new?url=${encodeURIComponent(recipe.sourceUrl)}`}
+                  className="border-t border-black/5 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-[#faf7ef] hover:text-black"
+                >
+                  + Save to My Recipes
+                </Link>
+              )}
+            </div>
           ))}
         </div>
       )}

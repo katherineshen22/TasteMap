@@ -72,3 +72,21 @@ export function uniqueSorted(values: (string | null | undefined)[]) {
   return [...new Set(values.map((v) => v?.trim()).filter(Boolean) as string[])]
     .sort((a, b) => a.localeCompare(b));
 }
+
+// Only allow http(s) links from user/imported data (blocks javascript: URLs).
+export function safeHttpUrl(value?: string | null) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+export function formatMinutes(minutes?: number | null) {
+  if (!minutes) return "";
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h ? `${h} hr${m ? ` ${m} min` : ""}` : `${m} min`;
+}

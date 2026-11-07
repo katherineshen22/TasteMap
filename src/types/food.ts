@@ -28,3 +28,27 @@ export type Dish = {
     tags: string[];
     ingredients: string[];
   };
+// A recipe the user wrote or imported (table: user_recipes).
+export type SavedRecipe = {
+  id: number;
+  user_id?: string;
+  title: string;
+  source_url: string | null;
+  image_url: string | null;
+  photo_path: string | null;
+  cuisine: string | null;
+  total_minutes: number | null;
+  servings: string | null;
+  ingredients: string[];
+  instructions: string[];
+  tags: string[];
+  notes: string | null;
+  rating: number | null;
+  created_at?: string;
+};
+
+// What the import endpoint returns: everything except the saved-row fields.
+export type ImportedRecipe = Omit<
+  SavedRecipe,
+  "id" | "user_id" | "photo_path" | "notes" | "rating" | "created_at"
+>;
