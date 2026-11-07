@@ -22,5 +22,8 @@ export function getTasteStats(dishes: Dish[]) {
       dishes.map((dish) => dish.cuisine).filter(Boolean)
     ),
     topTag: mostCommon(dishes.flatMap((dish) => dish.tags || [])),
+    citiesExplored: new Set(
+      dishes.map((dish) => dish.city?.trim().toLowerCase()).filter(Boolean)
+    ).size,
   };
 }

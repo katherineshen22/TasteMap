@@ -6,6 +6,10 @@ export type Dish = {
     rating: number;
     tags: string[];
     notes: string;
+    city?: string | null;
+    neighborhood?: string | null;
+    price_level?: number | null;
+    visited_on?: string | null;
     user_id?: string;
     created_at?: string;
   };

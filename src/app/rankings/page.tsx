@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import SearchableRankings from "@/components/SearchableRankings";
 import {
@@ -19,7 +20,7 @@ export default function RankingsPage() {
     <>
       <PageHeader
         title="Dish Rankings"
-        description="Every dish you've logged, ranked by rating."
+        description="Every dish you've logged. Filter by city, cuisine, price, and more."
         action={
           status === "ready" && (
             <Link href="/add" className={primaryButtonClass}>
@@ -46,7 +47,9 @@ export default function RankingsPage() {
       )}
 
       {status === "ready" && dishes.length > 0 && (
-        <SearchableRankings dishes={dishes} />
+        <Suspense fallback={<LoadingState />}>
+          <SearchableRankings dishes={dishes} />
+        </Suspense>
       )}
     </>
   );

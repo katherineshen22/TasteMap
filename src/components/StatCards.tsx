@@ -12,14 +12,15 @@ export default function StatCards({ dishes }: { dishes: Dish[] }) {
     },
     { label: "Favorite cuisine", value: stats.favoriteCuisine || "—" },
     { label: "Top flavor", value: stats.topTag || "—" },
+    { label: "Cities explored", value: String(stats.citiesExplored) },
   ];
 
   return (
-    <section className="mb-10 grid grid-cols-2 gap-3 md:grid-cols-4">
+    <section className="mb-10 grid grid-cols-2 gap-3 md:grid-cols-5">
       {items.map((item) => (
         <div
           key={item.label}
-          className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm"
+          className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm last:col-span-2 md:last:col-span-1"
         >
           <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
             {item.label}

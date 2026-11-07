@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import DeleteDishButton from "@/components/DeleteDishButton";
+import DishCard from "@/components/DishCard";
 import InternetRecipeSearch from "@/components/InternetRecipeSearch";
 import {
   EmptyState,
@@ -17,6 +18,12 @@ import {
 import { useRequireUser } from "@/hooks/useRequireUser";
 import { recipes } from "@/data/sampleData";
 import { recommendRecipes } from "@/lib/recommendations";
+import {
+  formatLocation,
+  formatPrice,
+  formatVisitDate,
+  googleMapsUrl,
+} from "@/lib/formatters";
 import { supabase } from "@/lib/supabaseClient";
 import { Dish } from "@/types/food";
 
@@ -27,6 +34,7 @@ export default function DishDetailsPage() {
   const [dish, setDish] = useState<Dish | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [allDishes, setAllDishes] = useState<Dish[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -42,6 +50,14 @@ export default function DishDetailsPage() {
         setDish((data as Dish) || null);
         setLoading(false);
       });
+
+    // Load the user's dishes so we can show what else they had here.
+    supabase
+      .from("dishes")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("rating", { ascending: false })
+      .then(({ data }) => setAllDishes((data as Dish[]) || []));
   }, [id, user]);
 
   if (!user || loading) return <LoadingState label="Loading dish..." />;
@@ -66,6 +82,13 @@ export default function DishDetailsPage() {
     recipes
   ).slice(0, 3);
 
+  const sameRestaurant = (other: Dish) =>
+    other.id !== dish.id &&
+    other.restaurant.trim().toLowerCase() === dish.restaurant.trim().toLowerCase() &&
+    (other.city || "").toLowerCase() === (dish.city || "").toLowerCase();
+  const moreHere = allDishes.filter(sameRestaurant);
+  const location = formatLocation(dish);
+
   return (
     <>
       <Link
@@ -79,12 +102,42 @@ export default function DishDetailsPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wider text-gray-500">
-              {dish.restaurant}
-              {dish.cuisine ? ` · ${dish.cuisine}` : ""}
+              {[dish.restaurant, dish.cuisine, formatPrice(dish.price_level)]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
             <h1 className="mt-1 text-3xl font-black text-black sm:text-4xl">
               {dish.dish}
             </h1>
+            {location && (
+              <p className="mt-2 text-sm text-gray-600">
+                📍{" "}
+                {dish.neighborhood && (
+                  <>
+                    <Link
+                      href={`/rankings?${new URLSearchParams({
+                        ...(dish.city ? { city: dish.city } : {}),
+                        neighborhood: dish.neighborhood,
+                      })}`}
+                      className="hover:underline"
+                      title="See all your dishes in this neighborhood"
+                    >
+                      {dish.neighborhood}
+                    </Link>
+                    {dish.city ? ", " : ""}
+                  </>
+                )}
+                {dish.city && (
+                  <Link
+                    href={`/rankings?city=${encodeURIComponent(dish.city)}`}
+                    className="hover:underline"
+                    title="See all your dishes in this city"
+                  >
+                    {dish.city}
+                  </Link>
+                )}
+              </p>
+            )}
           </div>
           <div className="text-xl">
             <RatingBadge rating={dish.rating} />
@@ -105,9 +158,11 @@ export default function DishDetailsPage() {
           </p>
         )}
 
-        {dish.created_at && (
+        {(dish.visited_on || dish.created_at) && (
           <p className="mt-5 text-xs text-gray-400">
-            Added {new Date(dish.created_at).toLocaleDateString()}
+            {dish.visited_on
+              ? `Visited ${formatVisitDate(dish.visited_on)}`
+              : `Added ${new Date(dish.created_at!).toLocaleDateString()}`}
           </p>
         )}
 
@@ -115,9 +170,30 @@ export default function DishDetailsPage() {
           <Link href={`/dishes/${dish.id}/edit`} className={secondaryButtonClass}>
             Edit
           </Link>
+          <a
+            href={googleMapsUrl(dish)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={secondaryButtonClass}
+          >
+            Open in Maps ↗
+          </a>
           <DeleteDishButton dishId={dish.id} />
         </div>
       </section>
+
+      {moreHere.length > 0 && (
+        <section className="mb-10">
+          <h2 className="mb-4 text-2xl font-black text-black">
+            More from {dish.restaurant}
+          </h2>
+          <div className="grid gap-3">
+            {moreHere.map((other) => (
+              <DishCard key={other.id} dish={other} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {matchingRecipes.some((recipe) => recipe.score > 0) && (
         <section className="mb-10">

@@ -34,3 +34,41 @@ export function normalizeText(value: string) {
       .map((tag) => normalizeTag(tag))
       .filter(Boolean);
   }
+export function formatPrice(level?: number | null) {
+  return level ? "$".repeat(level) : "";
+}
+
+export function formatLocation(dish: {
+  city?: string | null;
+  neighborhood?: string | null;
+}) {
+  return [dish.neighborhood, dish.city].filter(Boolean).join(", ");
+}
+
+// Parses a "YYYY-MM-DD" date as a local date (not UTC midnight, which
+// can show up as the previous day in US time zones).
+export function formatVisitDate(value?: string | null) {
+  if (!value) return "";
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+export function googleMapsUrl(dish: {
+  restaurant: string;
+  neighborhood?: string | null;
+  city?: string | null;
+}) {
+  const query = [dish.restaurant, dish.neighborhood, dish.city]
+    .filter(Boolean)
+    .join(", ");
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+export function uniqueSorted(values: (string | null | undefined)[]) {
+  return [...new Set(values.map((v) => v?.trim()).filter(Boolean) as string[])]
+    .sort((a, b) => a.localeCompare(b));
+}

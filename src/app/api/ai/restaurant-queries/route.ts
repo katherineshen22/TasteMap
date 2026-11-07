@@ -11,7 +11,9 @@ export async function POST(request: Request) {
   if (!client) return missingKeyResponse();
 
   try {
-    const { dishes } = await request.json();
+    const { dishes, city } = await request.json();
+    const targetCity =
+      typeof city === "string" ? city.trim().slice(0, 80) : "";
     const compact = compactDishes(dishes);
 
     if (compact.length === 0) {
@@ -34,7 +36,11 @@ export async function POST(request: Request) {
           content: `Here are the user's saved dishes:
 ${JSON.stringify(compact, null, 2)}
 
-Generate 5 short restaurant search queries (like you'd type into Google Maps) and a one-sentence explanation.
+Generate 5 short restaurant search queries (like you'd type into Google Maps) and a one-sentence explanation.${
+            targetCity
+              ? ` The user is looking for places in ${targetCity}, so end every query with "in ${targetCity}".`
+              : ""
+          }
 
 Return exactly this JSON shape:
 {

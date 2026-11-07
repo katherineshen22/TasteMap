@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ErrorMessage, cardClass, primaryButtonClass } from "@/components/ui";
 import { fetchJson } from "@/lib/fetchJson";
+import { uniqueSorted } from "@/lib/formatters";
 import { Dish } from "@/types/food";
 
 export default function AIRestaurantIdeas({ dishes }: { dishes: Dish[] }) {
@@ -10,6 +11,16 @@ export default function AIRestaurantIdeas({ dishes }: { dishes: Dish[] }) {
   const [explanation, setExplanation] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const cityOptions = uniqueSorted(dishes.map((dish) => dish.city));
+  // Default to the city you've logged the most dishes in.
+  const [city, setCity] = useState(() => {
+    const counts = new Map<string, number>();
+    dishes.forEach((dish) => {
+      if (dish.city) counts.set(dish.city, (counts.get(dish.city) || 0) + 1);
+    });
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+  });
 
   async function generateIdeas() {
     if (loading) return;
@@ -22,7 +33,7 @@ export default function AIRestaurantIdeas({ dishes }: { dishes: Dish[] }) {
     }>("/api/ai/restaurant-queries", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dishes }),
+      body: JSON.stringify({ dishes, city }),
     });
 
     if (error) {
@@ -46,14 +57,29 @@ export default function AIRestaurantIdeas({ dishes }: { dishes: Dish[] }) {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={generateIdeas}
-          disabled={loading}
-          className={primaryButtonClass}
-        >
-          {loading ? "Thinking..." : queries.length ? "Regenerate" : "Generate"}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            className="w-40 rounded-full border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200"
+            placeholder="📍 Any city"
+            list="ai-city-options"
+            value={city}
+            onChange={(event) => setCity(event.target.value)}
+            aria-label="City to find restaurants in"
+          />
+          <datalist id="ai-city-options">
+            {cityOptions.map((option) => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
+          <button
+            type="button"
+            onClick={generateIdeas}
+            disabled={loading}
+            className={primaryButtonClass}
+          >
+            {loading ? "Thinking..." : queries.length ? "Regenerate" : "Generate"}
+          </button>
+        </div>
       </div>
 
       <ErrorMessage message={error} />

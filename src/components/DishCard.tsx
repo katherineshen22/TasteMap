@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Dish } from "@/types/food";
 import { RatingBadge, TagPill } from "@/components/ui";
+import { formatLocation, formatPrice } from "@/lib/formatters";
 
 export default function DishCard({
   dish,
@@ -11,6 +12,8 @@ export default function DishCard({
   rank?: number;
   showNotes?: boolean;
 }) {
+  const location = formatLocation(dish);
+
   return (
     <Link
       href={`/dishes/${dish.id}`}
@@ -29,9 +32,13 @@ export default function DishCard({
               {dish.dish}
             </h3>
             <p className="truncate text-sm text-gray-600">
-              {dish.restaurant}
-              {dish.cuisine ? ` · ${dish.cuisine}` : ""}
+              {[dish.restaurant, dish.cuisine, formatPrice(dish.price_level)]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
+            {location && (
+              <p className="truncate text-xs text-gray-500">📍 {location}</p>
+            )}
           </div>
           <RatingBadge rating={dish.rating} />
         </div>

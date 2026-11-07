@@ -21,6 +21,8 @@ type DishInput = {
   rating?: number;
   tags?: string[];
   notes?: string;
+  city?: string | null;
+  price_level?: number | null;
 };
 
 // Only send the fields the AI needs, and cap how many dishes we send.
@@ -33,6 +35,8 @@ export function compactDishes(dishes: unknown) {
     rating: dish.rating,
     tags: dish.tags,
     notes: dish.notes,
+    ...(dish.city ? { city: dish.city } : {}),
+    ...(dish.price_level ? { price: "$".repeat(dish.price_level) } : {}),
   }));
 }
 
