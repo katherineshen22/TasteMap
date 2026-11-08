@@ -11,7 +11,7 @@ const navItems = [
   { href: "/rankings", label: "Rankings" },
   { href: "/want-to-try", label: "Want to Try" },
   { href: "/recipes", label: "Recipes" },
-  { href: "/internet-recipes", label: "Find Recipes" },
+  { href: "/people", label: "People" },
   { href: "/profile", label: "Profile" },
 ];
 
@@ -21,6 +21,7 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [requestCount, setRequestCount] = useState(0);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -42,6 +43,35 @@ export default function Navbar() {
   useEffect(() => {
     setMenuOpen(false);
   }, [pathname]);
+
+  // Pending follow requests, refreshed on navigation (e.g. after accepting).
+  useEffect(() => {
+    if (!email) {
+      setRequestCount(0);
+      return;
+    }
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { count } = await supabase
+        .from("follows")
+        .select("*", { count: "exact", head: true })
+        .eq("following_id", user.id)
+        .eq("status", "pending");
+      setRequestCount(count ?? 0);
+    });
+  }, [email, pathname]);
+
+  const label = (item: { href: string; label: string }) =>
+    item.href === "/people" && requestCount > 0 ? (
+      <>
+        {item.label}
+        <span className="ml-1.5 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+          {requestCount}
+        </span>
+      </>
+    ) : (
+      item.label
+    );
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -86,7 +116,7 @@ export default function Navbar() {
         <div className="hidden items-center gap-1 text-sm font-semibold md:flex">
           {navItems.map((item) => (
             <Link key={item.href} href={item.href} className={linkClass(item.href)}>
-              {item.label}
+              {label(item)}
             </Link>
           ))}
           <AuthButton
@@ -102,7 +132,7 @@ export default function Navbar() {
         <div className="grid gap-1 border-t border-black/10 px-4 py-3 text-sm font-semibold md:hidden">
           {navItems.map((item) => (
             <Link key={item.href} href={item.href} className={linkClass(item.href)}>
-              {item.label}
+              {label(item)}
             </Link>
           ))}
           <AuthButton

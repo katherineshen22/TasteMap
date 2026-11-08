@@ -52,3 +52,21 @@ export type ImportedRecipe = Omit<
   SavedRecipe,
   "id" | "user_id" | "photo_path" | "notes" | "rating" | "created_at"
 >;
+
+export type Profile = {
+  id: string;
+  username: string;
+  display_name: string | null;
+  bio: string | null;
+  is_private: boolean;
+  created_at?: string;
+};
+
+export type FollowStatus = "pending" | "accepted";
+
+export type Follow = {
+  follower_id: string;
+  following_id: string;
+  status: FollowStatus;
+  created_at?: string;
+};

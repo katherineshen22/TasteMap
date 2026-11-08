@@ -16,8 +16,10 @@ import { usePhotoUrls } from "@/hooks/usePhotoUrls";
 import { useRequireUser } from "@/hooks/useRequireUser";
 import { formatMinutes, safeHttpUrl } from "@/lib/formatters";
 import { deleteDishPhoto } from "@/lib/photos";
+import { Avatar } from "@/components/social";
+import { displayName, getProfile } from "@/lib/social";
 import { supabase } from "@/lib/supabaseClient";
-import { SavedRecipe } from "@/types/food";
+import { Profile, SavedRecipe } from "@/types/food";
 
 export default function RecipeDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,23 +31,55 @@ export default function RecipeDetailPage() {
   const [error, setError] = useState("");
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [owner, setOwner] = useState<Profile | null>(null);
+  const [copying, setCopying] = useState(false);
 
   const photoUrl = usePhotoUrls([recipe?.photo_path])[recipe?.photo_path || ""];
 
   useEffect(() => {
     if (!user) return;
+    // No user_id filter: row-level security decides whether it's visible.
     supabase
       .from("user_recipes")
       .select("*")
       .eq("id", id)
-      .eq("user_id", user.id)
       .maybeSingle()
-      .then(({ data, error }) => {
+      .then(async ({ data, error }) => {
         if (error) setError(error.message);
-        setRecipe((data as SavedRecipe) || null);
+        const found = (data as SavedRecipe) || null;
+        setRecipe(found);
         setLoading(false);
+        if (found?.user_id && found.user_id !== user.id) {
+          setOwner(await getProfile(found.user_id));
+        }
       });
   }, [id, user]);
+
+  // Copy a friend's recipe into my own recipes (my notes/rating start blank).
+  async function saveCopy() {
+    if (!user || !recipe || copying) return;
+    setCopying(true);
+    const { data, error } = await supabase
+      .from("user_recipes")
+      .insert({
+        user_id: user.id,
+        title: recipe.title,
+        source_url: recipe.source_url,
+        image_url: recipe.image_url,
+        cuisine: recipe.cuisine,
+        total_minutes: recipe.total_minutes,
+        servings: recipe.servings,
+        ingredients: recipe.ingredients,
+        instructions: recipe.instructions,
+        tags: recipe.tags,
+        notes: owner ? `From @${owner.username}` : null,
+      })
+      .select("id")
+      .single();
+    setCopying(false);
+    if (error) setError(`Couldn't save: ${error.message}`);
+    else router.push(`/recipes/${data.id}`);
+  }
 
   async function handleDelete() {
     if (!recipe || !window.confirm("Delete this recipe? This can't be undone.")) return;
@@ -77,7 +111,7 @@ export default function RecipeDetailPage() {
         <ErrorMessage message={error} />
         <EmptyState
           title="Recipe not found"
-          description="It may have been deleted, or it belongs to a different account."
+          description="It may have been deleted, or it belongs to a private account you don't follow."
           actionHref="/recipes"
           actionLabel="Back to Recipes"
         />
@@ -85,6 +119,7 @@ export default function RecipeDetailPage() {
     );
   }
 
+  const isOwner = recipe.user_id === user.id;
   const image = photoUrl || safeHttpUrl(recipe.image_url);
   const source = safeHttpUrl(recipe.source_url);
   const meta = [
@@ -95,12 +130,27 @@ export default function RecipeDetailPage() {
 
   return (
     <>
-      <Link
-        href="/recipes"
-        className="mb-6 inline-block text-sm font-semibold text-gray-600 hover:text-black"
-      >
-        ← Back to recipes
-      </Link>
+      {isOwner ? (
+        <Link
+          href="/recipes"
+          className="mb-6 inline-block text-sm font-semibold text-gray-600 hover:text-black"
+        >
+          ← Back to recipes
+        </Link>
+      ) : (
+        owner && (
+          <Link
+            href={`/u/${owner.username}`}
+            className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-black"
+          >
+            <Avatar profile={owner} size="sm" />
+            {displayName(owner)}
+            <span className="font-normal text-gray-500">
+              {recipe.source_url ? "saved this recipe" : "shared their recipe"}
+            </span>
+          </Link>
+        )
+      )}
 
       <ErrorMessage message={error} />
 
@@ -209,6 +259,17 @@ export default function RecipeDetailPage() {
           </div>
 
           <div className="mt-8 flex flex-wrap gap-3 border-t border-black/5 pt-6">
+            {!isOwner ? (
+              <button
+                type="button"
+                onClick={saveCopy}
+                disabled={copying}
+                className={secondaryButtonClass}
+              >
+                {copying ? "Saving..." : "+ Save to My Recipes"}
+              </button>
+            ) : (
+            <>
             <Link href={`/recipes/${recipe.id}/edit`} className={secondaryButtonClass}>
               Edit
             </Link>
@@ -220,6 +281,8 @@ export default function RecipeDetailPage() {
             >
               {deleting ? "Deleting..." : "Delete"}
             </button>
+            </>
+            )}
           </div>
         </div>
       </article>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import DishCard from "@/components/DishCard";
+import FriendsFeed from "@/components/FriendsFeed";
 import StatCards from "@/components/StatCards";
 import {
   EmptyState,
@@ -11,12 +12,14 @@ import {
   primaryButtonClass,
   secondaryButtonClass,
 } from "@/components/ui";
+import { useMyProfile } from "@/hooks/useMyProfile";
 import { useUserDishes } from "@/hooks/useUserDishes";
 import { recipes } from "@/data/sampleData";
 import { recommendRecipes } from "@/lib/recommendations";
 
 export default function Home() {
-  const { status, dishes, wantToTry, error } = useUserDishes();
+  const { status, user, dishes, wantToTry, error } = useUserDishes();
+  const { status: profileStatus, profile } = useMyProfile();
 
   const topDishes = dishes.slice(0, 3);
   const recommendedRecipes = recommendRecipes(dishes, recipes).slice(0, 3);
@@ -145,6 +148,32 @@ export default function Home() {
             </section>
           </div>
         </>
+      )}
+      {status === "ready" && user && (
+        <section className="mt-12">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-2xl font-black text-black">Friends&apos; Activity</h2>
+            <Link
+              href="/people"
+              className="text-sm font-semibold text-gray-600 hover:text-black"
+            >
+              Find friends →
+            </Link>
+          </div>
+
+          {profileStatus === "ready" && !profile && (
+            <div className={`${cardClass} mb-4 flex flex-wrap items-center justify-between gap-3 bg-[#faf7ef]`}>
+              <p className="text-sm text-gray-700">
+                <b>Set up your profile</b> so friends can find and follow you.
+              </p>
+              <Link href="/settings/profile" className={secondaryButtonClass}>
+                Create Profile
+              </Link>
+            </div>
+          )}
+
+          <FriendsFeed myId={user.id} />
+        </section>
       )}
     </>
   );

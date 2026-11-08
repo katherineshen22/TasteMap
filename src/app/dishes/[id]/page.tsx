@@ -26,8 +26,10 @@ import {
   formatVisitDate,
   googleMapsUrl,
 } from "@/lib/formatters";
+import { Avatar } from "@/components/social";
+import { displayName, getProfile } from "@/lib/social";
 import { supabase } from "@/lib/supabaseClient";
-import { Dish } from "@/types/food";
+import { Dish, Profile } from "@/types/food";
 
 export default function DishDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -40,29 +42,69 @@ export default function DishDetailsPage() {
   // allDishes includes this dish, so one request covers every photo here.
   const photoUrls = usePhotoUrls(allDishes.map((d) => d.photo_path));
 
+  const [owner, setOwner] = useState<Profile | null>(null);
+  const [savedToList, setSavedToList] = useState(false);
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
 
-    supabase
-      .from("dishes")
-      .select("*")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (error) setError(error.message);
-        setDish((data as Dish) || null);
-        setLoading(false);
-      });
+    (async () => {
+      // No user_id filter: row-level security returns the dish only if it's
+      // yours or you're allowed to see its owner's dishes.
+      const { data, error } = await supabase
+        .from("dishes")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error) setError(error.message);
+      const found = (data as Dish) || null;
+      setDish(found);
+      setLoading(false);
+      if (!found?.user_id) return;
 
-    // Load the user's dishes so we can show what else they had here.
-    supabase
-      .from("dishes")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("rating", { ascending: false })
-      .then(({ data }) => setAllDishes((data as Dish[]) || []));
+      // The owner's other dishes, for "More from this restaurant".
+      const [others, ownerProfile] = await Promise.all([
+        supabase
+          .from("dishes")
+          .select("*")
+          .eq("user_id", found.user_id)
+          .order("rating", { ascending: false, nullsFirst: false }),
+        found.user_id === user.id ? Promise.resolve(null) : getProfile(found.user_id),
+      ]);
+      if (cancelled) return;
+      setAllDishes((others.data as Dish[]) || []);
+      setOwner(ownerProfile);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id, user]);
+
+  // Copy a friend's dish into my Want to Try list.
+  async function saveToWantToTry() {
+    if (!user || !dish || saving) return;
+    setSaving(true);
+    const { error } = await supabase.from("dishes").insert({
+      user_id: user.id,
+      status: "want_to_try",
+      rating: null,
+      restaurant: dish.restaurant,
+      dish: dish.dish,
+      cuisine: dish.cuisine,
+      city: dish.city,
+      neighborhood: dish.neighborhood,
+      price_level: dish.price_level,
+      tags: dish.tags || [],
+      notes: owner ? `Recommended by @${owner.username}` : "",
+    });
+    setSaving(false);
+    if (error) setError(`Couldn't save: ${error.message}`);
+    else setSavedToList(true);
+  }
 
   if (!user || loading) return <LoadingState label="Loading dish..." />;
 
@@ -72,7 +114,7 @@ export default function DishDetailsPage() {
         <ErrorMessage message={error} />
         <EmptyState
           title="Dish not found"
-          description="It may have been deleted, or it belongs to a different account."
+          description="It may have been deleted, or it belongs to a private account you don't follow."
           actionHref="/rankings"
           actionLabel="Back to Rankings"
         />
@@ -94,15 +136,31 @@ export default function DishDetailsPage() {
   const location = formatLocation(dish);
   const wantToTry = dish.status === "want_to_try" || dish.rating == null;
   const photoUrl = dish.photo_path ? photoUrls[dish.photo_path] : undefined;
+  const isOwner = dish.user_id === user.id;
 
   return (
     <>
-      <Link
-        href={wantToTry ? "/want-to-try" : "/rankings"}
-        className="mb-6 inline-block text-sm font-semibold text-gray-600 hover:text-black"
-      >
-        ← Back to {wantToTry ? "Want to Try" : "rankings"}
-      </Link>
+      {isOwner ? (
+        <Link
+          href={wantToTry ? "/want-to-try" : "/rankings"}
+          className="mb-6 inline-block text-sm font-semibold text-gray-600 hover:text-black"
+        >
+          ← Back to {wantToTry ? "Want to Try" : "rankings"}
+        </Link>
+      ) : (
+        owner && (
+          <Link
+            href={`/u/${owner.username}`}
+            className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-black"
+          >
+            <Avatar profile={owner} size="sm" />
+            {displayName(owner)}
+            <span className="font-normal text-gray-500">
+              {wantToTry ? "wants to try this" : "rated this"}
+            </span>
+          </Link>
+        )
+      )}
 
       <section className={`${cardClass} mb-10 overflow-hidden p-0`}>
         {photoUrl && (
@@ -124,7 +182,10 @@ export default function DishDetailsPage() {
             <h1 className="mt-1 text-3xl font-black text-black sm:text-4xl">
               {dish.dish || dish.restaurant}
             </h1>
-            {location && (
+            {location && !isOwner && (
+              <p className="mt-2 text-sm text-gray-600">📍 {location}</p>
+            )}
+            {location && isOwner && (
               <p className="mt-2 text-sm text-gray-600">
                 📍{" "}
                 {dish.neighborhood && (
@@ -187,45 +248,72 @@ export default function DishDetailsPage() {
           </p>
         )}
 
-        <div className="mt-6 flex flex-wrap gap-3">
-          {wantToTry && (
-            <Link
-              href={`/dishes/${dish.id}/edit?tried=1`}
-              className={primaryButtonClass}
-            >
-              ✓ Mark as Tried
+        {isOwner ? (
+          <div className="mt-6 flex flex-wrap gap-3">
+            {wantToTry && (
+              <Link
+                href={`/dishes/${dish.id}/edit?tried=1`}
+                className={primaryButtonClass}
+              >
+                ✓ Mark as Tried
+              </Link>
+            )}
+            <Link href={`/dishes/${dish.id}/edit`} className={secondaryButtonClass}>
+              Edit
             </Link>
-          )}
-          <Link href={`/dishes/${dish.id}/edit`} className={secondaryButtonClass}>
-            Edit
-          </Link>
-          <a
-            href={googleMapsUrl(dish)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={secondaryButtonClass}
-          >
-            Open in Maps ↗
-          </a>
-          <Link
-            href={`/add?restaurant=${encodeURIComponent(dish.restaurant)}`}
-            className={secondaryButtonClass}
-          >
-            + Add Dish Here
-          </Link>
-          <DeleteDishButton
-            dishId={dish.id}
-            photoPath={dish.photo_path}
-            redirectTo={wantToTry ? "/want-to-try" : "/rankings"}
-          />
-        </div>
+            <a
+              href={googleMapsUrl(dish)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={secondaryButtonClass}
+            >
+              Open in Maps ↗
+            </a>
+            <Link
+              href={`/add?restaurant=${encodeURIComponent(dish.restaurant)}`}
+              className={secondaryButtonClass}
+            >
+              + Add Dish Here
+            </Link>
+            <DeleteDishButton
+              dishId={dish.id}
+              photoPath={dish.photo_path}
+              redirectTo={wantToTry ? "/want-to-try" : "/rankings"}
+            />
+          </div>
+        ) : (
+          <div className="mt-6 flex flex-wrap gap-3">
+            {savedToList ? (
+              <Link href="/want-to-try" className={secondaryButtonClass}>
+                ✓ Saved to your Want to Try
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={saveToWantToTry}
+                disabled={saving}
+                className={primaryButtonClass}
+              >
+                {saving ? "Saving..." : "☆ Save to Want to Try"}
+              </button>
+            )}
+            <a
+              href={googleMapsUrl(dish)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={secondaryButtonClass}
+            >
+              Open in Maps ↗
+            </a>
+          </div>
+        )}
         </div>
       </section>
 
       {moreHere.length > 0 && (
         <section className="mb-10">
           <h2 className="mb-4 text-2xl font-black text-black">
-            More from {dish.restaurant}
+            {isOwner ? "More" : `More ${owner ? displayName(owner) : "they"} had`} from {dish.restaurant}
           </h2>
           <div className="grid gap-3">
             {moreHere.map((other) => (

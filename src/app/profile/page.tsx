@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import AITasteSummary from "@/components/AITasteSummary";
 import AIRestaurantIdeas from "@/components/AIRestaurantIdeas";
 import StatCards from "@/components/StatCards";
@@ -10,10 +11,12 @@ import {
   LoginPrompt,
   PageHeader,
 } from "@/components/ui";
+import { useMyProfile } from "@/hooks/useMyProfile";
 import { useUserDishes } from "@/hooks/useUserDishes";
 
 export default function ProfilePage() {
   const { status, user, dishes, error } = useUserDishes();
+  const { profile } = useMyProfile();
 
   return (
     <>
@@ -23,6 +26,16 @@ export default function ProfilePage() {
           user?.email
             ? `Signed in as ${user.email}`
             : "A summary of the dishes you've saved."
+        }
+        action={
+          status === "ready" && (
+            <Link
+              href={profile ? `/u/${profile.username}` : "/settings/profile"}
+              className="text-sm font-semibold text-gray-600 hover:text-black"
+            >
+              {profile ? `@${profile.username} · public profile →` : "Set up your social profile →"}
+            </Link>
+          )
         }
       />
 
